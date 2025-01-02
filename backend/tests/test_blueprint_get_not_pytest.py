@@ -60,8 +60,8 @@ logger = logging.getLogger(__name__)
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 # Constants for topic and blueprint IDs
-TOPIC_ID = UUID('519b6341-930e-44dd-948f-40229d7b4d07')
-BLUEPRINT_ID = UUID('e25f9fa7-4348-4928-bd20-0cdb292dc18b')
+TOPIC_ID = UUID('fc19b62e-4abf-4ff8-bb70-7f03e58c898f')
+BLUEPRINT_ID = UUID('fa7a1ddb-6d50-4fc0-ab7e-5ce7838227e5')
 USER_ID = UUID('550e8400-e29b-41d4-a716-446655440000')  # Use a consistent user ID
 
 def create_jwt_token(user_id):
@@ -488,7 +488,7 @@ async def main():
     """Main entry point."""
     try:
         # Create test data first
-        await setup_database()
+        #await setup_database() # - Do not recreate tables!!  This will delete all data - Just create new topic and blueprint
         await create_test_data()
         
         # Run the test

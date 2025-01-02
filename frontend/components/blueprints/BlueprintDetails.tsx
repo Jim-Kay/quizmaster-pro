@@ -3,7 +3,7 @@
 import { blueprintsApi } from '../../api/blueprints';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Blueprint, TerminalObjective, EnablingObjective } from '../../schemas/blueprint';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface BlueprintDetailsProps {
@@ -17,11 +17,51 @@ export function BlueprintDetails({ topicId, blueprintId }: BlueprintDetailsProps
   const [editingEo, setEditingEo] = useState<string | null>(null);
   const [editedTitle, setEditedTitle] = useState('');
 
-  const { data: blueprint, isLoading, error } = useQuery<Blueprint>({
+  const { data: blueprint, isLoading, error } = useQuery({
     queryKey: ['blueprint', topicId, blueprintId],
-    queryFn: () => blueprintsApi.getBlueprint(topicId, blueprintId),
+    queryFn: () => blueprintsApi.getBlueprint(topicId, blueprintId)
   });
 
+  console.log('BlueprintDetails Render:', {
+    topicId,
+    blueprintId,
+    isLoading,
+    hasBlueprint: !!blueprint,
+    error
+  });
+
+  useEffect(() => {
+    console.log('Blueprint Data Changed:', blueprint);
+  }, [blueprint]);
+
+  useEffect(() => {
+    console.debug('Query State:', { 
+      isLoading, 
+      error, 
+      blueprintId, 
+      topicId,
+      hasData: !!blueprint,
+      blueprint 
+    });
+  }, [isLoading, error, blueprint, blueprintId, topicId]);
+
+  interface UpdateMutationVariables {
+    type: 'terminal' | 'enabling';
+    id: string;
+    title: string;
+  }
+
+  interface HandleEditFunction {
+    (type: 'terminal' | 'enabling', id: string, currentTitle: string): void;
+  }
+
+  interface HandleSaveFunction {
+    (type: 'terminal' | 'enabling', id: string): Promise<void>;
+  }
+
+  interface HandleCancelFunction {
+    (): void;
+  }
   const updateMutation = useMutation({
     mutationFn: async ({ type, id, title }: { type: 'terminal' | 'enabling'; id: string; title: string }) => {
       if (!blueprint) return;
@@ -76,13 +116,13 @@ export function BlueprintDetails({ topicId, blueprintId }: BlueprintDetailsProps
     <div className="space-y-4">
       <h1 className="text-3xl font-bold">{blueprint?.title}</h1>
       <div className="text-gray-600">
-        <p>Status: {blueprint?.status}</p>
+        <p>Blueprint Status: {blueprint?.status}</p>
       </div>
       <div>
         <h2 className="text-xl font-semibold mb-2">Objectives</h2>
-        <ul className="space-y-6">
+        <ul className="list-decimal pl-8 space-y-6">
           {blueprint?.terminal_objectives.map((to) => (
-            <li key={to.terminal_objective_id} className="list-decimal group">
+            <li key={to.terminal_objective_id} className="group">
               <div className="flex items-center gap-2">
                 {editingTo === to.terminal_objective_id ? (
                   <>
