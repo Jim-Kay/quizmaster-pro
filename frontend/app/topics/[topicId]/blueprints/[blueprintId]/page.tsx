@@ -1,5 +1,5 @@
-import { AssessmentsList } from '@/components/assessments/AssessmentsList';
-import { BlueprintDetails } from '@/components/blueprints/BlueprintDetails';
+import { AssessmentsList } from '../../../../../components/assessments/AssessmentsList';
+import { BlueprintDetails } from '../../../../../components/blueprints/BlueprintDetails';
 import { Suspense } from 'react';
 
 export default function BlueprintPage({ 

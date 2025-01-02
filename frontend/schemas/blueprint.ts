@@ -14,7 +14,7 @@ export interface Blueprint {
   updated_at: string;
 }
 
-interface TerminalObjective {
+export interface TerminalObjective {
   terminal_objective_id: string;
   title: string;
   number: number;
@@ -24,7 +24,7 @@ interface TerminalObjective {
   enabling_objectives: EnablingObjective[];
 }
 
-interface EnablingObjective {
+export interface EnablingObjective {
   enabling_objective_id: string;
   title: string;
   number: string;

@@ -1,4 +1,4 @@
-import { Blueprint } from '@/schemas/blueprint';
+import { Blueprint } from '../schemas/blueprint';
 import { getAuthHeaders } from '../app/auth/auth-utils';
 
 // Error classes
@@ -133,6 +133,36 @@ export const blueprintsApi = {
       }
       const errorText = await response.text();
       console.error('Failed to get blueprint:', errorText);
+      throw new Error(`API error: ${response.status} - ${errorText}`);
+    }
+
+    return await response.json();
+  },
+
+  updateBlueprint: async (topicId: string, blueprintId: string, blueprint: Partial<Blueprint>): Promise<Blueprint> => {
+    const response = await fetch(`/api/topics/${topicId}/blueprints/${blueprintId}`, {
+      method: 'PUT',
+      headers: {
+        ...(await getAuthHeaders()),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(blueprint),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new UnauthorizedError();
+      }
+      if (response.status === 404) {
+        const errorText = await response.text();
+        console.error('Blueprint or topic not found:', errorText);
+        if (errorText.includes('Topic not found')) {
+          throw new TopicNotFoundError();
+        }
+        throw new BlueprintNotFoundError();
+      }
+      const errorText = await response.text();
+      console.error('Failed to update blueprint:', errorText);
       throw new Error(`API error: ${response.status} - ${errorText}`);
     }
 
