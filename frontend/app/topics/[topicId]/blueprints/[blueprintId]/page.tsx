@@ -5,13 +5,13 @@ import { Suspense } from 'react';
 export default function BlueprintPage({ 
   params 
 }: { 
-  params: { id: string; blueprintId: string } 
+  params: { topicId: string; blueprintId: string } 
 }) {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <Suspense fallback={<BlueprintDetailsSkeleton />}>
         <BlueprintDetails 
-          topicId={params.id} 
+          topicId={params.topicId} 
           blueprintId={params.blueprintId} 
         />
       </Suspense>
@@ -20,7 +20,7 @@ export default function BlueprintPage({
         <h2 className="text-xl font-semibold mb-4">Assessments</h2>
         <Suspense fallback={<AssessmentsListSkeleton />}>
           <AssessmentsList 
-            topicId={params.id} 
+            topicId={params.topicId} 
             blueprintId={params.blueprintId} 
           />
         </Suspense>

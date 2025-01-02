@@ -19,7 +19,7 @@ import { blueprintsApi, UnauthorizedError, BlueprintNotFoundError } from '@/api/
 import { topicsApi } from '@/api/topics';
 
 interface Blueprint {
-  id: string;
+  blueprint_id: string;
   title: string;
   description: string;
   terminal_objectives_count: number;
@@ -50,14 +50,14 @@ export function BlueprintsList({ topicId }: { topicId: string }) {
   const { data: blueprints = [], isLoading, error } = useQuery<Blueprint[]>({
     queryKey: ['blueprints', topicId],
     queryFn: () => blueprintsApi.getBlueprints(topicId),
-    onError: (err) => {
-      console.error('Error fetching blueprints:', err);
-    },
   });
 
   const { data: blueprintCount } = useQuery<BlueprintCount>({
     queryKey: ['blueprintCount', topicId],
-    queryFn: () => blueprintsApi.getBlueprintCount(topicId),
+    queryFn: async () => {
+      const count = await blueprintsApi.getBlueprintCount(topicId);
+      return { count };
+    },
   });
 
   const deleteBlueprintMutation = useMutation({
@@ -86,6 +86,7 @@ export function BlueprintsList({ topicId }: { topicId: string }) {
 
   const handleDelete = async (e: React.MouseEvent, blueprintId: string) => {
     e.preventDefault(); // Prevent the link from being followed
+    console.log('Deleting blueprint with ID:', blueprintId);
     if (window.confirm('Are you sure you want to delete this blueprint?')) {
       try {
         await deleteBlueprintMutation.mutateAsync(blueprintId);
@@ -139,7 +140,7 @@ export function BlueprintsList({ topicId }: { topicId: string }) {
         <List spacing={4}>
           {blueprints.map((blueprint) => (
             <ListItem
-              key={blueprint.id}
+              key={blueprint.blueprint_id}
               p={4}
               border="1px"
               borderColor="gray.200"
@@ -169,13 +170,13 @@ export function BlueprintsList({ topicId }: { topicId: string }) {
                     size="sm"
                     variant="ghost"
                     colorScheme="red"
-                    onClick={(e) => handleDelete(e, blueprint.id)}
+                    onClick={(e) => handleDelete(e, blueprint.blueprint_id)}
                   >
                     <Icon as={TrashIcon} w={4} h={4} />
                   </Button>
                   <Button
                     as={Link}
-                    href={`/topics/${topicId}/blueprints/${blueprint.id}`}
+                    href={`/topics/${topicId}/blueprints/${blueprint.blueprint_id}`}
                     size="sm"
                     variant="ghost"
                   >

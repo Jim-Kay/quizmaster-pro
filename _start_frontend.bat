@@ -1,4 +1,4 @@
 CALL conda activate crewai-quizmaster-pro
 
-cd C:\data\crewai-quizmaster-pro\frontend
+cd C:\ParseThat\QuizMasterPro\frontend
 npm run dev

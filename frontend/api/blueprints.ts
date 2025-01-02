@@ -1,5 +1,5 @@
 import { Blueprint } from '@/schemas/blueprint';
-import { getAuthHeaders } from '@/app/auth/auth-utils';
+import { getAuthHeaders } from '../app/auth/auth-utils';
 
 // Error classes
 export class UnauthorizedError extends Error {
@@ -112,5 +112,30 @@ export const blueprintsApi = {
       console.error('Failed to delete blueprint:', errorText);
       throw new Error(`API error: ${response.status} - ${errorText}`);
     }
+  },
+
+  getBlueprint: async (topicId: string, blueprintId: string): Promise<Blueprint> => {
+    const response = await fetch(`/api/topics/${topicId}/blueprints/${blueprintId}`, {
+      headers: await getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new UnauthorizedError();
+      }
+      if (response.status === 404) {
+        const errorText = await response.text();
+        console.error('Blueprint or topic not found:', errorText);
+        if (errorText.includes('Topic not found')) {
+          throw new TopicNotFoundError();
+        }
+        throw new BlueprintNotFoundError();
+      }
+      const errorText = await response.text();
+      console.error('Failed to get blueprint:', errorText);
+      throw new Error(`API error: ${response.status} - ${errorText}`);
+    }
+
+    return await response.json();
   }
 };
