@@ -1,0 +1,218 @@
+Assessments Style Guide
+These rules aim to prevent a learner from picking an incorrect answer simply because of
+confusion over style, not lack of knowledge. For example, we don’t want a learner to
+misunderstand a question because he or she does not know an acronym that is
+non-essential to the knowledge the question is testing for.
+We adhere to the Google Developer Documentation Style Guide (GDD Style Guide), which in
+turn is based on Merriam-Webster’s Collegiate Dictionary and The Chicago Manual of Style.
+The GDD Style Guide is an industry standard that goes beyond grammar, spelling, and
+punctuation to include rules for consistent style created specifically for developers. It is easily
+searchable online and contains a useful word list, a text-formatting summary, and seven main
+sections:
+●General principles, including style and tone
+●Language and grammar
+●Punctuation
+●Formatting and organization
+●Computer interfaces
+●HTML and CSS
+●Names and naming
+Exceptions/Additions to the Google Developers Style Guide
+Acronyms and abbreviations
+Acronyms occasionally alienate learners and it is helpful to provide
+the phrase or term in the event that a learner does not know the abbreviation. Acronyms
+without the phrase in the first occurrence (except when used as a
+Remember-level question, for example, What does PS represent?)
+YES: Pluralsight (PS) is a technology learning platform.
+NO: PS is a technology learning platform.
+Avoid the use of “i.e.” or “e.g.” Instead, use “for example.”
+Avoid the use of “etc.” Instead use “and more.”
+Do not spell out an acronym if it is part of a product, service, or feature name and that
+product, service, or feature is only referred to with the acronym (Amazon DynamoDB vs.
+Amazon S3, also referred to as Amazon Simple Storage Service).
+In addition, if the acronym contains other acronyms, it is best to not spell out every
+acronym because it can quickly overwhelm a learner.
+YES: advanced RISC machine (ARM)
+NO: advanced reduced instruction set computer (RISC) machine (ARM)
+If the learner should already know a specific acronym to be proficient in the topic of the
+assessment, you do not need to spell it out. For example, in an assessment for RxJS,
+there is no need to spell out “Reactive Extensions for JavaScript” every time it appears in
+a question because it is safe to assume the learner knows what RxJS is.
+On the flip slide, if you judge that a term designated above should be spelled out because the
+average learner taking that specific assessment would not understand it, then spell it out.
+This would be the case if a technology is tangential to the topic of the assessment.
+Second Person and Pronouns
+Always use second person in assessments. Below is more guidance on how to use pronouns.
+When using second person, you must establish who the “You” is in your questions.
+Use second person pronouns or use “they” for the third person. Please avoid the use of “he,"
+“she,” and “he/she."
+YES: You are a security analyst and you discover a breach. What would you do next?
+YES: A security analyst finds a breach. What should they do next?
+NO: A security analyst finds a breach. What should he or she do next?
+NO: A security analyst finds a breach. What should he / she do next?
+Learners will only see one question at a time, so it is important to establish who
+pronouns refer to in each question.
+YES: Your manager asks you, the developer who built the sales teams’
+line-of-business application, to fix the software across the company’s devices.
+What should you do?
+There is no ambiguity about your role in this example.
+NO: Your manager tells you to fix the line-of-business application across the sales
+teams’ devices. What should you do?
+Depending on your role, the answer here could be different. For example, an
+end-user might submit a help desk ticket, a help-desk worker might reach out to
+a developer, and a developer might go into the app’s code to fix the problem.
+Words/Terms to Avoid
+●“Leverage;” you can almost always say “use”
+●Best of breed
+●“In order to;” you can almost always say “to”
+●“Since” and “as” when you mean “because”
+●“Like” when you mean “such as”
+●Environment: this is vague and can generally be replaced with a more specific word
+●“Space” when you mean “market”
+●“Impact” when you mean “effect/affect”
+Style Guidance
+All questions should be evergreen or future proof so they can stand the test of time.
+Someone may take the assessment when the iPhone X is no longer the latest smartphone
+from Apple, but the date the product was released will not change.
+YES: The iPhone XS Max, which Apple released in September 2018, was the first
+smartphone to include which feature?
+NO: Apple’s latest smartphone, the iPhone XS Max, is the first smartphone to include
+which feature?
+Use “ensure” when you mean “to make sure of.”
+The security team trained its users to ensure that they understood the risks.
+Use “insure” when referring to making arrangements for insurance.
+The security team implored the CEO to insure the company’s computers.
+Use “assure” when trying to convince someone.
+The security team assured the CEO that it had taken care of the breach.
+An organization/company is not a they/their.
+YES: An organization monitors its users.
+NO: An organization monitors their users.
+Assessments Requirements
+Dos and Don’ts
+All questions MUST:
+Be multiple-choice questions with ONE correct answer and THREE distractors.
+Have answer choices that are parallel in format and length.
+YES: What is an objective of IT service management (ITSM)?
+●Increasing efficiency inside an organization
+●Delivering more projects in a shorter time
+●Making sure tasks are allocated to employees
+●Ensuring projects fit in the allocated budget
+NO: What is an objective of IT service management (ITSM)?
+●Increasing efficiency inside an organization
+●Delivering more projects in a shorter time
+●Ensuring tasks are allocated to employees
+●Budget allocation
+Adhere to the Bloom’s Taxonomy framework.
+Reasoning: This framework enables us to have the appropriate difficulty level within
+our assessments.
+Be technically and unambiguously accurate.
+Use active voice and present tense when the subject of the sentence is performing the
+action.
+○YES: The learner took the test. (Active)
+○NO: The test was taken by the learner. (Passive)
+○OK: The firewall was disabled.
+○YES: You write the following code. (Present tense)
+○NO: You wrote the following code. (Past tense)
+Be able to stand alone, because learners will not know which objectives the questions belong
+to.
+YES: In Microsoft Word, how do you insert a hyperlink in a block of text?
+NO: How do you insert a hyperlink in a block of text?
+Be as specific and concise as possible.
+YES: What is the definition of “highly available?”
+NO: Which of the following definitions best describes what “highly available” means?
+Contain plausible distractors. Implausible distractors are easy to eliminate, making them
+easier to guess.
+YES: Which type of tree grows acorns? A) Pine B) Oak C) Elm D) Birch
+NO: Which type of tree grows acorns? A) Pine B) Oak C) Elm D) Telephone pole
+Contain no unintended errors in grammar, spelling, and punctuation. Please proofread your
+work before submission and make use of the spell check feature
+Use American-English spelling, unless the technology dictates otherwise.
+YES: customize, summarize, behavior, color
+NO: customise, summarise, behaviour, colour
+Include correct capitalization of proper nouns and/or tech specific capitalization.
+YES: iOS, JavaScript, Docker, Azure
+NO: Ios, javascript, docker, azure
+Make proper use of code formatting. If using our internal tooling, use the text editor to
+include code blocks and inline code. If using spreadsheets, use markdown to denote code
+formatting. Use **bold** for UI elements.
+Be correctly formatted. Most questions with short answers should end with a question mark,
+and the correct answer and distractors should be capitalized and end without punctuation.
+When citing recommendations, advice, or suggestions be specific as to who or what is
+making the recommendation or suggestion or giving the advice
+YES: Microsoft recommends using the latest version of Windows 10.
+NO: It is recommended that you use the latest version of Windows 10.
+All questions must AVOID:
+True or False questions. These make it too easy to guess the answer.
+All of the above/none of the above questions. These make it too easy to guess the correct
+answer, and the test engine randomizes all answers.
+Negatively phrased questions (Which of these is NOT...)
+Obscure or archaic words when not pertinent to the subject of the test.
+Complex sentences. Our learners are global customers and it is important to remember that
+we are measuring learners’ skill in technology, not their reading comprehension, so we need
+to use clear, plain English.
+Subjective language that leaves room for argument that a distractor could be the correct
+answer. This could lead to technically inaccurate questions.
+YES: Agile software development is a project management framework used in
+software development.
+NO: The Agile software development is the most efficient approach to software
+development.
+Keyboard shortcut questions and breadcrumb navigation answers and distractors. These
+don’t test a person’s knowledge and are usually configurable.
+Keyboard Shortcut: What is the keyboard shortcut to save a file?
+Breadcrumb Navigation: How do you save a file? File -> Save
+Language intended to trick the learner into guessing the wrong answer.
+Extraneous words, like “Which of the following.”
+YES: What does Splunk do when an active correlation search matches the search
+criteria?
+NO: Which of the following does Splunk do when an active correlation search matches
+the search criteria?
+Adverbs of degree or frequency, for example, “Really,” “Very,” “Extremely,” “Just.” These
+modifiers are superfluous, and questions require more specificity regarding frequency and
+intensity.
+YES: You scanned your hard drive for errors two hours ago.
+NO: You just scanned your hard drive.
+“Always” and “Never” statements. These types of declarations assume permanence, which is
+rare.
+YES: The update runs at 10 p.m.
+NO: The update always runs at 10 p.m.
+Vague language
+YES: You have been tasked with setting up a wide area network (WAN) for three
+offices across two countries in North America.
+NO: You have been tasked with setting up a wide area network (WAN) for several
+offices in different locations.
+Colloquialisms, idioms, country-specific products, and phrases. We have a global audience,
+and this could alienate some learners.
+Tricky questions. These can include unclear wording of questions, use of common words but
+with an unusual meaning, use of unusual words when usual words are commonly used, or
+use of double negatives.
+Use of Inclusive Language to Avoid Bias
+In addition to the guidance below, please review the inclusive language section of the Author
+Kit for guidance as you write assessments.
+Inclusive language is communication that does not stereotype or demean people based on
+personal characteristics including gender, gender expression, race, ethnicity, economic
+background, national origin, ability/disability status, religion, sexual orientation, etc.
+●Use balanced or neutral representation of age, gender, culture, and ethnicity.
+○Due to the adaptive nature of our tests, a balanced representation to age,
+gender, culture, and ethnicity is not always achievable, so in scenario-based
+questions it is best to put the learner as the subject of the question.
+■YES: “You are a security analyst who has been asked to implement
+security measures...”
+■NO: “Taylor is a security analyst who has been asked to implement
+security measures...”
+○Avoid presenting age, gender, culture, or ethnic groups in a stereotyped
+fashion, even in wrong answers.
+●Differences in gender, gender expression, race, ethnicity, economic background,
+ability/disability status, religion, and sexual orientation should only be mentioned
+when relevant.
+●Use “people-first” language.
+○YES: “You are a helpdesk technician and you’ve been asked to install software
+for a teammate who uses a screen reader...”
+○NO: “You are a helpdesk technician and you’ve been asked to install software
+for a blind teammate...”
+●Avoid questions that have the potential to unnecessarily evoke emotional responses
+○Avoid sensitive topics in test questions, because this may cause anxiety or
+other emotional responses from learners, which may cause unequal testing
+conditions.
+■Example: Politics, religion, etc.
+○Some words or phrases have more than one meaning, and one of those
+meanings might have emotional impact for certain groups.
+■Example: Courier (letter vs. drug)

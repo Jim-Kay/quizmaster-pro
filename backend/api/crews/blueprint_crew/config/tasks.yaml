@@ -1,0 +1,63 @@
+design_blueprint_task:
+  description: >
+    You are tasked with designing an instructional blueprint for the topic: {topic}
+    
+    Topic Description: {topic_description}
+    
+    Your task is to:
+    1. Use Bloom's Revised Taxonomy to ensure appropriate cognitive levels for each objective (remembering, understanding, applying, analyzing)
+    2. Include 8-10 Terminal Objectives that cover the full scope of the topic
+    3. Add 5-8 Enabling Objectives for each Terminal Objective
+    4. Ensure objectives are clear, measurable, and aligned with the topic description
+    5. Return a Pydantic model with this structure:
+    BlueprintPydantic(
+      title="{topic}",
+      description="[Brief description of the blueprint]",
+      terminal_objectives=[
+        TerminalObjective(
+          number="1",
+          description="[Terminal objective description]",
+          cognitive_level="[Bloom's level]",
+          enabling_objectives=[
+            EnablingObjective(
+              number="1.1",
+              description="[Enabling objective description]",
+              cognitive_level="[Bloom's level]"
+            )
+          ]
+        )
+      ]
+    )
+
+  expected_output: >
+    You must return a valid Pydantic model (BlueprintPydantic) containing:
+    - title: string
+    - description: string
+    - terminal_objectives: list of TerminalObjective objects, each containing:
+      - number: string (e.g., "1", "2", etc.)
+      - description: string
+      - cognitive_level: string (one of: "Remember", "Understand", "Apply", "Analyze", "Evaluate")
+      - enabling_objectives: list of EnablingObjective objects, each containing:
+        - number: string (e.g., "1.1", "1.2", etc.)
+        - description: string
+        - cognitive_level: string (same as above)
+    
+    Example:
+    BlueprintPydantic(
+      title="Basic Mathematics",
+      description="A comprehensive learning plan for basic mathematics concepts",
+      terminal_objectives=[
+        TerminalObjective(
+          number="1",
+          description="Demonstrate mastery of basic arithmetic operations",
+          cognitive_level="Apply",
+          enabling_objectives=[
+            EnablingObjective(
+              number="1.1",
+              description="Add multi-digit numbers accurately",
+              cognitive_level="Apply"
+            )
+          ]
+        )
+      ]
+    )

@@ -1,0 +1,175 @@
+confirm_topic_task:
+  description: >
+    Confirm the topic "{topic}" of the assessment with the user. Ask follow-up questions to 
+    refine the scope, covering subdomains, technologies, and skill levels. Wait for the user's 
+    confirmation before marking this task as complete.
+  expected_output: >
+    A finalized and user-approved topic statement for the assessment.
+
+design_blueprint_task:
+  description: >
+    Read the provided PDF file at "{taxonomy_pdf_path}" to create a detailed assessment blueprint for "{topic}".
+    - Include 8-10 Terminal Objectives.
+    - Add 5-8 Enabling Objectives for each Terminal Objective.
+  expected_output: >
+    A markdown-formatted assessment blueprint for "{topic}" approved by the user.
+
+generate_questions_task:
+  description: >
+    Based on the user-approved blueprint, create {number_of_questions} multiple-choice questions about "{topic}".
+    Each question must:
+    - Align with an enabling objective.
+    - Follow the cognitive behavior sequence (Remember, Understand, Apply, Analyze).
+    - Include a clear stem, 1 correct answer, and 3 plausible distractors.
+    - Adhere to the Style Guide found at '{style_guide_pdf_path}' for clarity, accessibility, and inclusivity.
+  expected_output: >
+    A list of {number_of_questions} well-crafted, multiple-choice questions categorized by enabling objectives and cognitive behaviors. 
+    The response should also indicate:
+    - Which answer is the correct answer
+    - Which enabling objective or objectives are satisfied by the question
+    - The cognitive behavior level of the question
+    - Why the correct answer is correct - along with an external reference if applicable
+    - Why the distractors are incorrect - along with an external reference if applicable
+
+validate_correct_answers_task:
+  description: >
+    Review all correct answers for "{topic}" to ensure factual accuracy and alignment with the assessment topic.
+    Verify the plausibility of distractors to avoid misleading or incorrect options.
+    Evaluate the following criteria:
+    - Technical accuracy: Is the question viable from a technical viewpoint?
+    - Clarity: Are the questions, answers, and distractors clear and concise?
+    - Objectivity: Is there one correct answer to the question?
+    - Plausibility: Are the distractors believable?
+    - Grammar / Spelling / Typos: Are all words spelled correctly? Is the sentence structure correct? Is there a clear subject and a verb?
+  expected_output: >
+    A detailed report confirming the accuracy of all correct answers about "{topic}" or listing corrections with justifications.
+
+check_style_task:
+  description: >
+    Review all questions about "{topic}" to ensure they follow the Style Guide found at '{style_guide_pdf_path}'.
+    Focus on:
+    - Clarity and simplicity of language.
+    - Inclusivity and accessibility.
+    - Proper formatting, including stems, options, and references.
+  expected_output: >
+    A list of approved questions or suggested edits about "{topic}" to align with the Style Guide.
+
+write_blueprint_task:
+  description: >
+    Save the assessment blueprint to a JSON file in the specified output folder.
+  expected_output: >
+    A JSON file named `blueprint.json` containing the blueprint saved in the output folder.
+
+write_questions_task:
+  description: >
+    Save each question as a separate JSON file in the specified output folder. 
+    The files should be named `q001.json`, `q002.json`, etc.
+  expected_output: >
+    JSON files for each question saved in the output folder.
+
+create_final_assessment_task:
+  description: >
+    Combine the blueprint and all individual questions into a single JSON file 
+    named `final.json` and save it in the specified output folder.
+  expected_output: >
+    A single JSON file named `final.json` containing the blueprint and all questions, saved in the output folder.
+
+manage_question_creation_task:
+  description: >
+    1. Ask the 'Topic Confirmation Specialist' to confirm with the user the topic for the assessment.
+    2. Collaborate with the 'Blueprint Designer' to design a comprehensive assessment blueprint.
+    3. Collaborate with the '{topic} Question Author' to generate {number_of_questions} questions.
+    4. Collaborate with the '{topic} SME' for content validation.
+    5. Collaborate with the '{topic} Technical Writer' for style validation.
+    6. If any issues are found, coordinate with the '{topic} Question Author' for revisions.
+    7. Once approved by both the SME and Technical Writer, add the questions to the final set.
+    - Ensure each question includes:
+      - `questionNumber`
+      - `stem`
+      - `correctAnswer`
+      - `distractors`
+      - `objectiveNumbers`
+      - `correctAnswerExplanation`
+      - `distractorExplanations`
+    - Collect all questions and the blueprint into a structured format matching the provided schema.
+    - At the end, output the complete assessment as a JSON object conforming to the schema.
+
+    Repeat this process until all "{number_of_questions}" questions are approved.  
+    The process is not complete until all {number_of_questions} questions are validated and styled correctly.
+    Ensure that your final output is a valid JSON object that can be parsed into the provided Pydantic model.
+  expected_output: >
+    A json object containing the finalized assessment blueprint and multiple-choice questions for "{topic}".
+    A complete set of {number_of_questions} validated multiple-choice questions ready for inclusion in the assessment.
+
+    Below is an example of the JSON format your final output should conform to - 
+    This example only shows a small number of objectives and questions.  The final version should hold 
+    - 8-10 Terminal Objectives.
+    - 5-8 Enabling Objectives for each Terminal Objective
+    - {number_of_questions} questions
+
+    Abbreviated sample output:
+
+    blueprint:
+      terminalObjectives:
+        - number: 1
+          description: >-
+            Demonstrate advanced data modeling using DAX functions in Power BI
+            Report Server.
+          enablingObjectives:
+            - number: '1.1'
+              description: Identify the benefits of advanced DAX functions.
+            - number: '1.2'
+              description: Explain the impact on calculation complexity and performance.
+        - number: 2
+          description: Understand unique reporting features in Power BI Report Server.
+          enablingObjectives:
+            - number: '2.1'
+              description: Identify unique features like paginated reports.
+            - number: '2.2'
+              description: >-
+                Differentiate between Power BI Service and Report Server
+                capabilities.
+    questions:
+      - questionNumber: 1
+        stem: >-
+          What is an advantage of using advanced DAX functions in Power BI Report
+          Server data modeling?
+        correctAnswer: C) Enhanced calculation complexity and performance
+        distractors:
+          - A) Improved data visualization capabilities
+          - B) Simplified data import processes
+          - D) Increased report export options
+        objectiveNumbers:
+          - '1.1'
+          - '1.2'
+        correctAnswerExplanation: >-
+          Advanced DAX functions can significantly increase the complexity and
+          performance of calculations, vital for sophisticated data modeling.
+        distractorExplanations:
+          - >-
+            Improved data visualization is achieved through visuals, not DAX
+            complexity.
+          - DAX isn't primarily about simplifying imports.
+          - Report export benefits are unrelated to DAX capabilities.
+      - questionNumber: 2
+        stem: >-
+          Which feature is unique to Power BI Report Server when designing report
+          layouts?
+        correctAnswer: B) Paginated report capabilities
+        distractors:
+          - A) Custom visual imports
+          - C) Real-time data refresh
+          - D) Collaboration through Power BI Service
+        objectiveNumbers:
+          - '2.1'
+        correctAnswerExplanation: >-
+          Paginated reports are designed for printing and precise formatting, unique
+          to Power BI Report Server.
+        distractorExplanations:
+          - Custom visuals are not unique.
+          - Real-time refresh is in both services.
+          - 'Collaboration is through Power BI Service, not Server.'
+    
+
+
+
