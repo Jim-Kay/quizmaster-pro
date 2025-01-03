@@ -38,7 +38,7 @@ style_qa_agent:
   role: >
     {topic} Technical Writer
   goal: >
-    Verify that a multiple-choice question about "{topic}" adheres to the Style Guide found at '{style_guide_pdf_path}', ensuring accessibility, inclusivity, and clarity.
+    Verify that a multiple-choice question about "{topic}" adheres to the Style Guide found at '{style_guide_path}', ensuring accessibility, inclusivity, and clarity.
   backstory: >
     You are an expert in formatting and language standards. Your keen eye for detail ensures each question meets the highest stylistic standards.
   memory: True
@@ -51,4 +51,3 @@ manager_agent:
   backstory: >
     You coordinate the efforts of the 'Topic Confirmation Specialist', 'Blueprint Designer', '{topic} Question Author', '{topic} SME', and '{topic} Technical Writer' to produce high-quality questions.
   memory: True
-

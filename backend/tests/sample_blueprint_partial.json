@@ -1,0 +1,51 @@
+{
+    "blueprint_id": "da22e239-9c65-4671-954f-c289ced107fb",
+    "title": "Creating Tests in Playwright",
+    "description": "A comprehensive instructional blueprint for creating and executing UX tests using Playwright.",
+    "topic_id": "af2ad24a-9a5d-480d-9f6e-a2b95c8423e3",
+    "created_by": "550e8400-e29b-41d4-a716-446655440000",
+    "created_at": "2025-01-02T19:13:30.770554Z",
+    "updated_at": null,
+    "terminal_objectives_count": 1,
+    "enabling_objectives_count": 3,
+    "terminal_objectives": [
+        {
+            "terminal_objective_id": "a41a4abc-993d-47b4-940f-a62d0dd3c2c6",
+            "title": "Utilize Playwright's advanced features for UX testing.",
+            "description": "Utilize Playwright's advanced features for UX testing.",
+            "number": 5,
+            "cognitive_level": "EVALUATE",
+            "created_at": "2025-01-02T19:14:04.817520Z",
+            "updated_at": "2025-01-02T19:14:04.817520Z",
+            "enabling_objectives": [
+                {
+                    "enabling_objective_id": "2ce9a2d6-76a1-48d0-86f0-7c1bae4d8687",
+                    "title": "Assess the use of locators in complex UI structures.",
+                    "description": "Assess the use of locators in complex UI structures.",
+                    "number": "5.1",
+                    "cognitive_level": "EVALUATE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "98cf86cf-0681-4706-960f-f766ee39f946",
+                    "title": "Evaluate the effectiveness of using Playwright's API for testing asynchronous operations.",
+                    "description": "Evaluate the effectiveness of using Playwright's API for testing asynchronous operations.",
+                    "number": "5.2",
+                    "cognitive_level": "EVALUATE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "eb19eeb3-c623-45bf-8c7c-01a15e33ba89",
+                    "title": "Determine when to use network interception for UX testing.",
+                    "description": "Determine when to use network interception for UX testing.",
+                    "number": "5.3",
+                    "cognitive_level": "EVALUATE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                }
+            ]
+        }
+    ]
+}

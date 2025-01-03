@@ -5,11 +5,13 @@ design_blueprint_task:
     Topic Description: {topic_description}
     
     Your task is to:
-    1. Use Bloom's Revised Taxonomy to ensure appropriate cognitive levels for each objective (remembering, understanding, applying, analyzing)
-    2. Include 8-10 Terminal Objectives that cover the full scope of the topic
-    3. Add 5-8 Enabling Objectives for each Terminal Objective
-    4. Ensure objectives are clear, measurable, and aligned with the topic description
-    5. Return a Pydantic model with this structure:
+    1. Use Bloom's Revised Taxonomy to ensure appropriate cognitive levels for each objective
+    2. Only inclue cognitive levels for REMEMBER, UNDERSTAND, APPLY, ANALYZE!
+    3. Do not include cognitive levels for EVALUATE or CREATE!
+    4. Include 8-10 Terminal Objectives that cover the full scope of the topic
+    5. Add 5-8 Enabling Objectives for each Terminal Objective
+    6. Ensure objectives are clear, measurable, and aligned with the topic description
+    7. Return a Pydantic model with this structure:
     BlueprintPydantic(
       title="{topic}",
       description="[Brief description of the blueprint]",

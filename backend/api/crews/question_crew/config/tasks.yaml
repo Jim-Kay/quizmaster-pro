@@ -5,7 +5,9 @@ generate_questions_task:
     - Align with an enabling objective.
     - Follow the cognitive behavior sequence (Remember, Understand, Apply, Analyze).
     - Include a clear stem, 1 correct answer, and 3 plausible distractors.
-    - Adhere to the Style Guide found at '{style_guide_pdf_path}' for clarity, accessibility, and inclusivity.
+    - Ensure the question is clear, concise, and unambiguous.
+    - Ensure the question is relevant to the topic "{topic}".
+    - Adhere to the Style Guide found at '{style_guide_path}' for clarity, accessibility, and inclusivity.
 
     Here is the user-approved blueprint:
 
@@ -37,7 +39,7 @@ validate_correct_answers_task:
 
 check_style_task:
   description: >
-    Review all questions about "{topic}" to ensure they follow the Style Guide found at '{style_guide_pdf_path}'.
+    Review all questions about "{topic}" to ensure they follow the Style Guide found at '{style_guide_path}'.
     Focus on:
     - Clarity and simplicity of language.
     - Inclusivity and accessibility.
@@ -115,7 +117,3 @@ manage_question_creation_task:
           - Custom visuals are not unique.
           - Real-time refresh is in both services.
           - 'Collaboration is through Power BI Service, not Server.'
-    
-
-
-

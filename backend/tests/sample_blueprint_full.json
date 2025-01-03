@@ -1,0 +1,241 @@
+{
+    "blueprint_id": "da22e239-9c65-4671-954f-c289ced107fb",
+    "title": "Creating Tests in Playwright",
+    "description": "A comprehensive instructional blueprint for creating and executing UX tests using Playwright.",
+    "topic_id": "af2ad24a-9a5d-480d-9f6e-a2b95c8423e3",
+    "created_by": "550e8400-e29b-41d4-a716-446655440000",
+    "created_at": "2025-01-02T19:13:30.770554Z",
+    "updated_at": null,
+    "terminal_objectives_count": 6,
+    "enabling_objectives_count": 18,
+    "terminal_objectives": [
+        {
+            "terminal_objective_id": "4d2b1e7f-1e7e-45ff-8603-224bf9a49d81",
+            "title": "Define the purpose and key features of Playwright in UX testing.",
+            "description": "Define the purpose and key features of Playwright in UX testing.",
+            "number": 1,
+            "cognitive_level": "REMEMBER",
+            "created_at": "2025-01-02T19:14:04.817520Z",
+            "updated_at": "2025-01-02T19:14:04.817520Z",
+            "enabling_objectives": [
+                {
+                    "enabling_objective_id": "2a150d7f-f408-4de2-ad21-39c3793649e7",
+                    "title": "List the primary functions of Playwright.",
+                    "description": "List the primary functions of Playwright.",
+                    "number": "1.1",
+                    "cognitive_level": "REMEMBER",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "07401de7-13ed-4b8c-89c2-07936fbde9cf",
+                    "title": "Identify the differences between Playwright and other testing frameworks.",
+                    "description": "Identify the differences between Playwright and other testing frameworks.",
+                    "number": "1.2",
+                    "cognitive_level": "REMEMBER",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "f135a1a1-dd69-4e17-b950-ee14f23ed80b",
+                    "title": "Recall the supported browsers by Playwright.",
+                    "description": "Recall the supported browsers by Playwright.",
+                    "number": "1.3",
+                    "cognitive_level": "REMEMBER",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                }
+            ]
+        },
+        {
+            "terminal_objective_id": "4777955a-6e6a-4538-a908-652981beb543",
+            "title": "Explain the installation process and requirements for Playwright.",
+            "description": "Explain the installation process and requirements for Playwright.",
+            "number": 2,
+            "cognitive_level": "UNDERSTAND",
+            "created_at": "2025-01-02T19:14:04.817520Z",
+            "updated_at": "2025-01-02T19:14:04.817520Z",
+            "enabling_objectives": [
+                {
+                    "enabling_objective_id": "18b22073-6759-4481-9cd0-5576b8568c5c",
+                    "title": "Describe the system requirements for installing Playwright.",
+                    "description": "Describe the system requirements for installing Playwright.",
+                    "number": "2.1",
+                    "cognitive_level": "UNDERSTAND",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "250f21bc-decb-4528-a355-602da76c09bc",
+                    "title": "Summarize the installation steps for Playwright on different operating systems.",
+                    "description": "Summarize the installation steps for Playwright on different operating systems.",
+                    "number": "2.2",
+                    "cognitive_level": "UNDERSTAND",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "e5272969-0996-4a41-9f4f-0f1dd404f6ff",
+                    "title": "Explain how to configure Playwright for different test environments.",
+                    "description": "Explain how to configure Playwright for different test environments.",
+                    "number": "2.3",
+                    "cognitive_level": "UNDERSTAND",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                }
+            ]
+        },
+        {
+            "terminal_objective_id": "6181e614-503c-40e7-87c9-6350ab98621b",
+            "title": "Implement a basic test script using Playwright.",
+            "description": "Implement a basic test script using Playwright.",
+            "number": 3,
+            "cognitive_level": "APPLY",
+            "created_at": "2025-01-02T19:14:04.817520Z",
+            "updated_at": "2025-01-02T19:14:04.817520Z",
+            "enabling_objectives": [
+                {
+                    "enabling_objective_id": "e455a5ba-500d-4052-9a68-3a657a06b165",
+                    "title": "Write a simple Playwright script to automate a browser action.",
+                    "description": "Write a simple Playwright script to automate a browser action.",
+                    "number": "3.1",
+                    "cognitive_level": "APPLY",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "63d57037-d60e-4cfe-9cc3-36398542efe3",
+                    "title": "Use screenshots and console logs in a Playwright test.",
+                    "description": "Use screenshots and console logs in a Playwright test.",
+                    "number": "3.2",
+                    "cognitive_level": "APPLY",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "b8625efb-dae1-4c46-93f5-b8da7bf27047",
+                    "title": "Run the test script in different browsers using Playwright.",
+                    "description": "Run the test script in different browsers using Playwright.",
+                    "number": "3.3",
+                    "cognitive_level": "APPLY",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                }
+            ]
+        },
+        {
+            "terminal_objective_id": "f06fc7cb-619f-4267-ac51-c58e87512de0",
+            "title": "Analyze test results and troubleshoot common issues in Playwright.",
+            "description": "Analyze test results and troubleshoot common issues in Playwright.",
+            "number": 4,
+            "cognitive_level": "ANALYZE",
+            "created_at": "2025-01-02T19:14:04.817520Z",
+            "updated_at": "2025-01-02T19:14:04.817520Z",
+            "enabling_objectives": [
+                {
+                    "enabling_objective_id": "8f472675-d565-4c7e-9cc6-58da07a385c6",
+                    "title": "Interpret error messages generated by Playwright tests.",
+                    "description": "Interpret error messages generated by Playwright tests.",
+                    "number": "4.1",
+                    "cognitive_level": "ANALYZE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "08c94c9a-8a97-4651-8496-6774c2cbb49f",
+                    "title": "Evaluate the performance of tests based on execution times.",
+                    "description": "Evaluate the performance of tests based on execution times.",
+                    "number": "4.2",
+                    "cognitive_level": "ANALYZE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "024fa1d7-90eb-40ab-a10c-5a9e8cbc1f81",
+                    "title": "Identify potential improvements in test scripts based on analysis.",
+                    "description": "Identify potential improvements in test scripts based on analysis.",
+                    "number": "4.3",
+                    "cognitive_level": "ANALYZE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                }
+            ]
+        },
+        {
+            "terminal_objective_id": "a41a4abc-993d-47b4-940f-a62d0dd3c2c6",
+            "title": "Utilize Playwright's advanced features for UX testing.",
+            "description": "Utilize Playwright's advanced features for UX testing.",
+            "number": 5,
+            "cognitive_level": "EVALUATE",
+            "created_at": "2025-01-02T19:14:04.817520Z",
+            "updated_at": "2025-01-02T19:14:04.817520Z",
+            "enabling_objectives": [
+                {
+                    "enabling_objective_id": "2ce9a2d6-76a1-48d0-86f0-7c1bae4d8687",
+                    "title": "Assess the use of locators in complex UI structures.",
+                    "description": "Assess the use of locators in complex UI structures.",
+                    "number": "5.1",
+                    "cognitive_level": "EVALUATE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "98cf86cf-0681-4706-960f-f766ee39f946",
+                    "title": "Evaluate the effectiveness of using Playwright's API for testing asynchronous operations.",
+                    "description": "Evaluate the effectiveness of using Playwright's API for testing asynchronous operations.",
+                    "number": "5.2",
+                    "cognitive_level": "EVALUATE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "eb19eeb3-c623-45bf-8c7c-01a15e33ba89",
+                    "title": "Determine when to use network interception for UX testing.",
+                    "description": "Determine when to use network interception for UX testing.",
+                    "number": "5.3",
+                    "cognitive_level": "EVALUATE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                }
+            ]
+        },
+        {
+            "terminal_objective_id": "7440f9af-eaf6-4178-8f67-f1b9d6fa8686",
+            "title": "Design comprehensive UX tests using Playwright.",
+            "description": "Design comprehensive UX tests using Playwright.",
+            "number": 6,
+            "cognitive_level": "CREATE",
+            "created_at": "2025-01-02T19:14:04.817520Z",
+            "updated_at": "2025-01-02T19:14:04.817520Z",
+            "enabling_objectives": [
+                {
+                    "enabling_objective_id": "33d98e2b-8e79-40c9-a68b-d57a5ea1e6a7",
+                    "title": "Formulate a testing strategy for a web application using Playwright.",
+                    "description": "Formulate a testing strategy for a web application using Playwright.",
+                    "number": "6.1",
+                    "cognitive_level": "CREATE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "3f21b3f4-2416-4436-927c-4e72673e5951",
+                    "title": "Develop test scenarios that encompass multiple user interactions.",
+                    "description": "Develop test scenarios that encompass multiple user interactions.",
+                    "number": "6.2",
+                    "cognitive_level": "CREATE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                },
+                {
+                    "enabling_objective_id": "450fc7dc-5c84-433a-8c10-24c8ceee3149",
+                    "title": "Compose a report detailing the test outcomes and recommendations for stakeholders.",
+                    "description": "Compose a report detailing the test outcomes and recommendations for stakeholders.",
+                    "number": "6.3",
+                    "cognitive_level": "CREATE",
+                    "created_at": "2025-01-02T19:14:04.817520Z",
+                    "updated_at": "2025-01-02T19:14:04.817520Z"
+                }
+            ]
+        }
+    ]
+}

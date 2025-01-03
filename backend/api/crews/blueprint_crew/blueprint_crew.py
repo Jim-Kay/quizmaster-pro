@@ -19,7 +19,12 @@ class BlueprintCrew:
         """Initialize the blueprint crew with optional inputs."""
         self.inputs = inputs
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.logfolder = os.path.join('C:\\', 'data', 'crewai-quizmaster-pro', 'logs')
+        
+        # Get project root directory
+        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        project_root = os.path.dirname(backend_dir)
+        self.logfolder = os.path.join(project_root, 'logs')
+        os.makedirs(self.logfolder, exist_ok=True)
         
         # Load YAML configurations
         config_dir = os.path.join(os.path.dirname(__file__), 'config')

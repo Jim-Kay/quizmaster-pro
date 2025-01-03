@@ -35,6 +35,16 @@ ObjectiveNumber = Annotated[
     constr(pattern=r'^[0-9]+(\.[0-9]+)?$')
 ]
 
+DistractorsType = Annotated[
+    List[str],
+    Field(min_length=3, max_length=3)
+]
+
+DistractorExplanationsType = Annotated[
+    List[str],
+    Field(min_length=3, max_length=3)
+]
+
 class EnablingObjectivePydantic(BaseModel):
     enabling_objective_id: UUID4 | None = None
     title: str = Field(..., min_length=3, max_length=255)
@@ -176,4 +186,86 @@ class BlueprintStatusResponse(BaseModel):
     terminal_objectives_count: int = Field(default=0)
     enabling_objectives_count: int = Field(default=0)
     error_details: Optional[str] = Field(None, description="Detailed error information if status is 'error'")
+    model_config = ConfigDict(from_attributes=True)
+
+class QuestionOption(BaseModel):
+    text: str
+    is_correct: bool
+    explanation: str
+    references: Optional[List[str]] = Field(default_factory=list)
+
+class Question(BaseModel):
+    id: Optional[UUID4] = Field(default=None)
+    question_number: int
+    stem: str = Field(..., min_length=10)
+    correct_answer: str
+    distractors: DistractorsType
+    objective_numbers: List[ObjectiveNumber]
+    cognitive_level: CognitiveLevelEnum
+    correct_answer_explanation: str
+    distractor_explanations: DistractorExplanationsType
+    references: Optional[List[str]] = Field(default_factory=list)
+    model_config = ConfigDict(from_attributes=True)
+
+class Assessment(BaseModel):
+    id: Optional[UUID4] = Field(default=None)
+    topic_id: UUID4
+    questions: List[Question] = []
+    model_config = ConfigDict(from_attributes=True)
+
+class AssessmentSession(BaseModel):
+    id: Optional[UUID4] = Field(default=None)
+    user_id: UUID4
+    assessment_id: UUID4
+    start_time: datetime = Field(default_factory=datetime.utcnow)
+    end_time: Optional[datetime] = None
+    score: Optional[float] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class UserResponse(BaseModel):
+    id: Optional[UUID4] = Field(default=None)
+    assessment_session_id: UUID4
+    question_id: UUID4
+    selected_option_index: int
+    is_correct: bool
+    time_taken_seconds: float
+    model_config = ConfigDict(from_attributes=True)
+
+class User(BaseModel):
+    """User model for authentication and preferences."""
+    id: Optional[UUID4] = Field(default=None)
+    email: str = Field(..., max_length=255)
+    name: Optional[str] = Field(None, max_length=255)
+    llm_provider: LLMProvider = Field(default=LLMProvider.OPENAI)
+    encrypted_openai_key: Optional[str] = None
+    encrypted_anthropic_key: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+# Request/Response Models
+class TopicCreate(BaseModel):
+    title: str = Field(..., min_length=3, max_length=200)
+    description: str = Field(..., min_length=10)
+
+class TopicUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=3, max_length=200)
+    description: Optional[str] = Field(None, min_length=10)
+
+class AssessmentBlueprintCreate(BaseModel):
+    topic_id: UUID4
+    terminal_objectives: List[UUID4] = Field(..., min_items=1, max_items=10)
+    enabling_objectives_per_terminal: int = Field(..., ge=5, le=8)
+
+class AssessmentSessionCreate(BaseModel):
+    assessment_id: UUID4
+
+class UserResponseCreate(BaseModel):
+    question_id: UUID4
+    selected_option_index: int
+    time_taken_seconds: float
+
+class Topic(BaseModel):
+    id: Optional[UUID4] = Field(default=None)
+    title: str = Field(..., min_length=3, max_length=200)
+    description: str = Field(..., min_length=10)
+    user_id: Optional[UUID4] = None
     model_config = ConfigDict(from_attributes=True)

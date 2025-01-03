@@ -1,12 +1,12 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task, before_kickoff, after_kickoff
-from tools.custom_tool import PDFReaderTool
+from ..tools.markdown_reader_tool import MarkdownReaderTool
 from crewai_tools import SerperDevTool
 from datetime import datetime
 from models import Assessment  # Import the Pydantic model
-from crewai.llm import LLM
 from dotenv import load_dotenv
 import os
+import logging
 
 load_dotenv()
 
@@ -17,37 +17,50 @@ class QuestionCrew():
     agents_config = 'config/agents.yaml'
     tasks_config = 'config/tasks.yaml'
 
-    # Generate a timestamp string
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    logfolder = 'C:\\data\\crewai-quizmaster-pro\\logs'
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        self.logfolder = None
 
     @before_kickoff
     def prepare_inputs(self, inputs):
         """
         Modify or validate inputs before starting the crew.
         """
-        print(f"Preparing inputs: {inputs}")
-        # Create a unique folder for this execution under the log folder
-        topic_folder = os.path.join(self.logfolder, inputs['topic'].replace(" ", "_"))
-        os.makedirs(topic_folder, exist_ok=True)
-        inputs['output_folder'] = topic_folder
-        inputs['processed'] = True
-        return inputs
+        self.logger.info(f"Preparing inputs: {inputs}")
+        # Use the output_folder from inputs directly
+        if 'output_folder' in inputs:
+            self.logfolder = inputs['output_folder']
+            # Create the output directory if it doesn't exist
+            os.makedirs(self.logfolder, exist_ok=True)
+            self.logger.debug(f"Created/verified output folder: {self.logfolder}")
+            inputs['processed'] = True
+            return inputs
+        else:
+            self.logger.error("output_folder not provided in inputs")
+            raise ValueError("output_folder must be provided in inputs")
 
     @after_kickoff
     def finalize_results(self, output):
         """
         Process the crew's output after it finishes.
         """
-        if output and output.pydantic:
-            final_json_output = output.pydantic.model_dump_json(indent=2)
-            topic_folder = output.pydantic.output_folder
-            # Save the final JSON output to a file
-            with open(os.path.join(topic_folder, 'final.json'), 'w', encoding='utf-8') as f:
-                f.write(final_json_output)
-            print("Final JSON Output saved to 'final.json'.")
+        if output and hasattr(output, 'model_dump_json'):
+            final_json_output = output.model_dump_json(indent=2)
+            # Save the final JSON output to a file in the output folder
+            if self.logfolder:
+                output_file = os.path.join(self.logfolder, 'final.json')
+                self.logger.debug(f"Writing final output to: {output_file}")
+                # No need to create directory again since it's done in prepare_inputs
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    f.write(final_json_output)
+                self.logger.info(f"Final JSON Output saved to '{output_file}'.")
+            else:
+                self.logger.warning("No output folder specified, skipping file output.")
         else:
-            print("No valid output to serialize.")
+            self.logger.warning("No valid output to serialize.")
+            if output:
+                self.logger.debug(f"Output type: {type(output)}")
+                self.logger.debug(f"Output content: {output}")
 
     @agent
     def question_generator_agent(self) -> Agent:
@@ -73,7 +86,7 @@ class QuestionCrew():
     def style_qa_agent(self) -> Agent:
         return Agent(
             config=self.agents_config['style_qa_agent'],
-            tools=[PDFReaderTool()],
+            tools=[MarkdownReaderTool()],
             verbose=True,
             allow_delegation=False
         )
@@ -105,7 +118,7 @@ class QuestionCrew():
             verbose=True,
             planning=True,
             memory=True,
-            output_log_file=f'{self.logfolder}\\output_{self.timestamp}.log'
+            output_log_file=os.path.join(self.logfolder, 'output.log') if self.logfolder else None
 			# process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
 		)
 
@@ -130,6 +143,5 @@ class QuestionCrew():
     #         planning=True,
     #         memory=True,
     #         verbose=True,
-    #         output_log_file=f'{self.logfolder}\\output_{self.timestamp}.log'
+    #         output_log_file=os.path.join(self.logfolder, 'output.log') if self.logfolder else None
     #     )
-

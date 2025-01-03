@@ -10,15 +10,19 @@ import os
 load_dotenv()
 
 @CrewBase
-class QuestionCrew():
-    """Question crew for generating questions"""
+class AssessmentCrew():
+    """Assessment crew for conducting assessments"""
 
     agents_config = 'config/agents.yaml'
     tasks_config = 'config/tasks.yaml'
 
     # Generate a timestamp string
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    logfolder = 'C:\\data\\crewai-quizmaster-pro\\logs'
+
+    # Get project root directory
+    backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    project_root = os.path.dirname(backend_dir)
+    logfolder = os.path.join(project_root, 'logs')
 
     @before_kickoff
     def prepare_inputs(self, inputs):
