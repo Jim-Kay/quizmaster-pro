@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 from api.auth import get_current_user
-from api.routers import topics, user_settings, blueprints, blueprint_generation
+from api.routers import topics, user_settings, blueprints, blueprint_generation, flow_execution
+from api.flows.flow_wrapper import FlowWrapper
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -63,6 +64,43 @@ app.include_router(
     blueprint_generation.router,
     prefix="/api",
     tags=["blueprint_generation"],
+    dependencies=[Depends(get_current_user)]
+)
+
+# Initialize and register flows
+flow_wrapper = FlowWrapper()
+
+# Import flows only if needed
+try:
+    from api.flows.test_flow import TestFlow
+    flow_wrapper.register_flow("test", TestFlow)
+except ImportError as e:
+    logger.warning(f"TestFlow not available: {str(e)}")
+
+try:
+    import sys
+    sys.path.append("C:/ParseThat/QuizMasterPro/backend/api/flows/sample_poem_flow/src")
+    from sample_poem_flow.main import PoemFlow
+    flow_wrapper.register_flow("poem", PoemFlow)
+except ImportError as e:
+    logger.warning(f"PoemFlow not available: {str(e)}")
+
+try:
+    import sys
+    sys.path.append("flows/write_a_book_with_flows/src")
+    from write_a_book_with_flows.main import BookFlow
+    flow_wrapper.register_flow("book", BookFlow)
+except ImportError as e:
+    logger.warning(f"BookFlow not available: {str(e)}")
+
+# Set the flow wrapper in the router
+flow_execution.flow_wrapper = flow_wrapper
+
+# Include flow execution router
+app.include_router(
+    flow_execution.router,
+    prefix="/api/flows",
+    tags=["flows"],
     dependencies=[Depends(get_current_user)]
 )
 

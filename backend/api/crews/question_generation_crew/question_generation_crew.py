@@ -1,18 +1,18 @@
-from crewai import Agent, Crew, Process, Task
-from crewai.project import CrewBase, agent, crew, task, before_kickoff, after_kickoff
-from ..tools.markdown_reader_tool import MarkdownReaderTool
+from crewai import Agent, Crew, Task
+from crewai.project.crew_base import CrewBase
+from crewai.project.annotations import before_kickoff, after_kickoff, agent, task, crew
+from .tools.markdown_reader_tool import MarkdownReaderTool
 from crewai_tools import SerperDevTool
 from datetime import datetime
-from models import Assessment  # Import the Pydantic model
-from dotenv import load_dotenv
 import os
 import logging
+from dotenv import load_dotenv
 
 load_dotenv()
 
 @CrewBase
-class QuestionCrew():
-    """Question crew for generating questions"""
+class QuestionGenerationCrew():
+    """Question Generation crew for creating assessment questions"""
 
     agents_config = 'config/agents.yaml'
     tasks_config = 'config/tasks.yaml'
@@ -69,7 +69,8 @@ class QuestionCrew():
             config=self.agents_config['question_generator_agent'],
             tools=[search_tool],
             verbose=True,
-            allow_delegation=False
+            allow_delegation=False,
+            llm='gpt-4o'
         )
 
     @agent
@@ -79,7 +80,8 @@ class QuestionCrew():
             config=self.agents_config['subject_matter_qa_agent'],
             tools=[search_tool],
             verbose=True,
-            allow_delegation=False
+            allow_delegation=False,
+            llm='gpt-4o'
         )
 
     @agent
@@ -88,7 +90,8 @@ class QuestionCrew():
             config=self.agents_config['style_qa_agent'],
             tools=[MarkdownReaderTool()],
             verbose=True,
-            allow_delegation=False
+            allow_delegation=False,
+            llm='gpt-4o'
         )
 
     @agent
@@ -96,52 +99,37 @@ class QuestionCrew():
         return Agent(
             config=self.agents_config['manager_agent'],
             verbose=True,
-            allow_delegation=True
+            allow_delegation=True,
+            llm='gpt-4o'
         )
 
     @task
     def manage_question_creation_task(self) -> Task:
         return Task(
             config=self.tasks_config['manage_question_creation_task'],
-            agent=self.manager_agent(),
-            output_pydantic=Assessment
+            agent=self.manager_agent()
         )
 
     @crew
     def crew(self) -> Crew:
-        """Creates the CrewaiResearcher crew"""
+        agents = [
+            self.question_generator_agent(),
+            self.subject_matter_qa_agent(),
+            self.style_qa_agent(),
+            self.manager_agent()
+        ]
+
+        tasks = [
+            self.manage_question_creation_task()
+        ]
+
         return Crew(
-            agents=self.agents, # Automatically created by the @agent decorator
-            tasks=self.tasks, # Automatically created by the @task decorator
-            process=Process.sequential,
+            agents=agents,
+            tasks=tasks,
             manager_agent=self.manager_agent(),
             verbose=True,
             planning=True,
-            memory=True,
+            memory=False,
             output_log_file=os.path.join(self.logfolder, 'output.log') if self.logfolder else None
-			# process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
-		)
-
-    # @crew
-    # def crew(self) -> Crew:
-    #     agents = [
-    #         self.question_generator_agent(),
-    #         self.subject_matter_qa_agent(),
-    #         self.style_qa_agent(),
-    #         self.manager_agent()
-    #     ]
-
-    #     tasks = [
-    #         self.manage_question_creation_task()
-    #     ]
-
-    #     return Crew(
-    #         agents=agents,
-    #         tasks=tasks,
-    #         manager_agent=self.manager_agent(),
-    #         process=Process.sequential,
-    #         planning=True,
-    #         memory=True,
-    #         verbose=True,
-    #         output_log_file=os.path.join(self.logfolder, 'output.log') if self.logfolder else None
-    #     )
+            # process=Process.hierarchical, # In case you wanna use that instead https://docs.crewai.com/how-to/Hierarchical/
+        )

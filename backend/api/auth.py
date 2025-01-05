@@ -24,7 +24,16 @@ async def get_current_user(credentials: Annotated[HTTPAuthorizationCredentials, 
         if not token:
             raise HTTPException(status_code=401, detail="No token provided")
 
-        # For mock auth, verify the token with the same secret
+        # Handle test tokens (format: test_token_[uuid])
+        if token.startswith("test_token_"):
+            try:
+                user_id = token.replace("test_token_", "")
+                print(f"Decoded test token with user ID: {user_id}")
+                return uuid.UUID(user_id)
+            except ValueError:
+                raise HTTPException(status_code=401, detail="Invalid test token format")
+
+        # For regular auth, verify the token with the secret
         try:
             payload = decode(
                 token,

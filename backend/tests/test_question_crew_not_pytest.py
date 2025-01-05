@@ -1,26 +1,21 @@
 # Note: This script is not intended to be run as a pytest test
 # To run this script, use the following command:
-#       conda run -n crewai-quizmaster-pro python -u c:/ParseThat/QuizMasterPro/backend/tests/test_question_crew_not_pytest.py
+#       conda run -n crewai-quizmaster-pro python -u -c "import sys; sys.path.append('c:/ParseThat/QuizMasterPro/backend'); exec(open('c:/ParseThat/QuizMasterPro/backend/tests/test_question_crew_not_pytest.py').read())"
 
 import os
 import sys
-import uuid
 import logging
-from pathlib import Path
 from datetime import datetime
-from crewai import Agent, Task, Crew
 import logging
 from api.utils.file_utils import sanitize_filename
 
 # Get the backend directory path
-backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-project_root = os.path.dirname(backend_dir)
-crews_dir = os.path.join(backend_dir, 'api', 'crews')
+if '__file__' not in globals():
+    __file__ = os.path.abspath(sys.argv[0])
 
-# Add both possible paths to sys.path
-sys.path.insert(0, project_root)
-sys.path.insert(0, backend_dir)
-sys.path.insert(0, crews_dir)
+#set the backend directory to the parent directory of the current file
+backend_dir = "C:\\parsethat\\QuizMasterPro\\backend"
+sys.path.append(backend_dir)
 
 # Configure logging
 def setup_logging():
@@ -42,7 +37,7 @@ def setup_logging():
 # Create logger for this module
 logger = logging.getLogger(__name__)
 
-from api.crews.question_crew.question_crew import QuestionCrew
+from api.crews.question_generation_crew.question_generation_crew import QuestionGenerationCrew
 from api.schemas.pydantic_schemas import Assessment, Question  # Update import path
 from dotenv import load_dotenv
 
@@ -62,7 +57,7 @@ def main():
     logger.info(f"Loading Sample Blueprint...")
 
     # Load sample blueprint
-    blueprint_path = os.path.join(backend_dir, "tests", "sample_blueprint_partial.json")
+    blueprint_path = "C:\\ParseThat\\QuizMasterPro\\backend\\tests\\sample_blueprint_partial.json"
     if not os.path.exists(blueprint_path):
         logger.error(f"Blueprint file not found: {blueprint_path}")
         sys.exit(1)
@@ -78,21 +73,21 @@ def main():
         logger.debug(f"Full output directory path: {os.path.abspath(topic_dir)}")
 
         # Define the input parameters based on question crew config
-        style_guide = os.path.join(backend_dir, "api", "crews", "reference_documents", "Style Guide for Assessments.md")
+        style_guide = "C:\\ParseThat\\QuizMasterPro\\backend\\api\\crews\\reference_documents\\Style Guide for Assessments.md"
         inputs = {
             "blueprint": blueprint_path,
             "number_of_questions": 3,  # Default number of questions
             "topic": "Playwright Testing",  # Topic from sample blueprint
             "style_guide_path": style_guide,
-            "style_guide_pdf_path": style_guide,  # For backward compatibility
+            "style_guide_pdf_path": style_guide,
             "output_folder": topic_dir
         }
 
-        # Create an instance of QuestionCrew with inputs
-        logger.info("Initializing QuestionCrew...")
+        # Create an instance of QuestionGenerationCrew with inputs
+        logger.info("Initializing QuestionGenerationCrew...")
         logger.debug(f"Input parameters: {inputs}")
-        question_crew = QuestionCrew()
-        logger.info("QuestionCrew initialized successfully")
+        question_crew = QuestionGenerationCrew()
+        logger.info("QuestionGenerationCrew initialized successfully")
         
         logger.info("Getting crew instance...")
         crew = question_crew.crew()

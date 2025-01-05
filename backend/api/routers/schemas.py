@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, Annotated
+from typing import List, Optional, Annotated, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict, constr, UUID4
 from enum import Enum
 import json
@@ -245,3 +245,29 @@ class BlueprintStatus(BaseModel):
     enabling_objectives_count: int = Field(default=0)
 
     model_config = ConfigDict(from_attributes=True)
+
+class FlowStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    PAUSED = "paused"
+
+class FlowExecution(BaseModel):
+    """A flow execution instance."""
+    id: UUID4
+    flow_name: str
+    status: FlowStatus = FlowStatus.PENDING
+    state: Dict[str, Any] = {}
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    error: Optional[str] = None
+    cache_key: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class FlowExecutionCreate(BaseModel):
+    """Request model for creating a new flow execution."""
+    flow_name: str
+    initial_state: Dict[str, Any] = {}
+    use_cache: bool = True

@@ -1,0 +1,12 @@
+{
+  "raw_output": "None",
+  "raw_state": "topic_title='sunset' topic_description='A beautiful sunset on the beach' sentence_count=3 poem=\"In the heart of a forest, where shadows dance light,  \\nThe whispers of nature tell tales of delight,  \\nFrom roots that entwine in the soft earthen bed,  \\nTo leaves that like dancers sway gently overhead.  \\n\\nThe song of the river, a melody clear,  \\nFlows through the valleys, inviting all near,  \\nIn a tapestry woven with colors so bold,  \\nEach petal, each ripple, a story retold.  \\n\\nHere life finds its rhythm, a cycle divine,  \\nFrom dawn's tender glow to the dusk's gentle shine,  \\nIn this sacred embrace, where all beings intertwine,  \\nThe spirit of the wild beckons us to align.\" user_id='550e8400-e29b-41d4-a716-446655440000'",
+  "state_dict": {
+    "topic_title": "sunset",
+    "topic_description": "A beautiful sunset on the beach",
+    "sentence_count": 3,
+    "poem": "In the heart of a forest, where shadows dance light,  \nThe whispers of nature tell tales of delight,  \nFrom roots that entwine in the soft earthen bed,  \nTo leaves that like dancers sway gently overhead.  \n\nThe song of the river, a melody clear,  \nFlows through the valleys, inviting all near,  \nIn a tapestry woven with colors so bold,  \nEach petal, each ripple, a story retold.  \n\nHere life finds its rhythm, a cycle divine,  \nFrom dawn's tender glow to the dusk's gentle shine,  \nIn this sacred embrace, where all beings intertwine,  \nThe spirit of the wild beckons us to align.",
+    "user_id": "550e8400-e29b-41d4-a716-446655440000"
+  },
+  "created_at": "2025-01-05T02:08:25.063182"
+}

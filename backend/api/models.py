@@ -19,6 +19,13 @@ class CognitiveLevelEnum(enum.Enum):
     EVALUATE = "EVALUATE"
     CREATE = "CREATE"
 
+class FlowExecutionStatus(enum.Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    PAUSED = "paused"
+
 class User(Base):
     __tablename__ = "users"
     
@@ -34,6 +41,7 @@ class User(Base):
     # Relationships
     topics = relationship("Topic", back_populates="user")
     blueprints = relationship("Blueprint", back_populates="user")
+    flow_executions = relationship("FlowExecution", back_populates="user")
 
 class Topic(Base):
     __tablename__ = "topics"
@@ -113,3 +121,21 @@ class Blueprint(Base):
         """Update the counts of terminal and enabling objectives."""
         self.terminal_objectives_count = len(self.terminal_objectives)
         self.enabling_objectives_count = sum(len(to.enabling_objectives) for to in self.terminal_objectives)
+
+class FlowExecution(Base):
+    __tablename__ = "flow_executions"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    flow_name = Column(String(255), nullable=False)
+    status = Column(SQLAEnum(FlowExecutionStatus), nullable=False, default=FlowExecutionStatus.PENDING)
+    state = Column(JSON, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    log_file = Column(String(255), nullable=True)
+    cache_key = Column(String(255), nullable=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="flow_executions")

@@ -1,5 +1,6 @@
 import { BlueprintsList } from '@/components/blueprints/BlueprintsList';
 import { TopicDetails } from '@/components/topics/TopicDetails';
+import { BookGenerator } from '@/components/topics/BookGenerator';
 import { Suspense } from 'react';
 
 export default function TopicPage({ params }: { params: { topicId: string } }) {
@@ -8,13 +9,6 @@ export default function TopicPage({ params }: { params: { topicId: string } }) {
       <Suspense fallback={<TopicDetailsSkeleton />}>
         <TopicDetails topicId={params.topicId} />
       </Suspense>
-      
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Assessment Blueprints</h2>
-        <Suspense fallback={<BlueprintsListSkeleton />}>
-          <BlueprintsList topicId={params.topicId} />
-        </Suspense>
-      </div>
     </div>
   );
 }

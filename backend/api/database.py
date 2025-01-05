@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import os
 from dotenv import load_dotenv
 import logging
@@ -34,6 +34,9 @@ async def init_db():
     """Initialize the database and create tables."""
     logger.info("Initializing database...")
     async with engine.begin() as conn:
+        # Drop existing flow_executions table if it exists
+        await conn.execute(text("DROP TABLE IF EXISTS flow_executions"))
+        # Create all tables
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database initialized.")
 

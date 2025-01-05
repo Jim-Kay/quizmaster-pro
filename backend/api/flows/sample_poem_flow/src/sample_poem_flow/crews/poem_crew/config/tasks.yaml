@@ -1,0 +1,15 @@
+write_poem:
+  description: >
+    Write a poem about the topic: {topic_title}
+    
+    Topic Description: {topic_description}
+    
+    Requirements:
+    1. The poem should capture the essence and key points of the topic
+    2. Use exactly {sentence_count} sentences
+    3. Make it engaging and memorable
+    4. Format the output as a proper poem with line breaks
+  expected_output: >
+    A beautifully crafted poem about {topic_title}, with exactly {sentence_count} sentences,
+    properly formatted with line breaks and stanzas.
+  agent: poem_writer

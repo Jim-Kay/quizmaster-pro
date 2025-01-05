@@ -10,7 +10,7 @@ import os
 load_dotenv()
 
 @CrewBase
-class AssessmentCrew():
+class AssessmentFacilitatorCrew():
     """Assessment crew for conducting assessments"""
 
     agents_config = 'config/agents.yaml'

@@ -1,0 +1,8 @@
+write_poem:
+  description: >
+    Write a beautiful poem about {state.topic_title}.
+    Description: {state.topic_description}
+    The poem should be {state.sentence_count} sentences long.
+  agent: "poem_writer"
+  expected_output: "A well-crafted poem that captures the essence of the topic"
+  async_execution: False

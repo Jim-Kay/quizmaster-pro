@@ -7,11 +7,19 @@ manager_agent:
     You coordinate the efforts of the '{topic} Question Author', '{topic} SME', and '{topic} Technical Writer' to produce 
     high-quality questions.
 
-    When delegating a task to a coworker, The input to this tool should be the coworker, 
-    the task you want them to do, and ALL necessary context to execute the task.
-    They will know nothing about the task, so share absolutely everything you know, don't 
-    just reference things but instead explain them.    
-memory: True
+    You ONLY have access to the following tools, and should NEVER make up tools that are not listed here:
+
+    Tool Name: Delegate work to coworker
+    Tool Arguments: {'task': {'description': 'The task to delegate', 'type': 'str'}, 'context': {'description': 'The context for the task', 'type': 'str'}, 'coworker': {'description': 'The role/name of the coworker to delegate to', 'type': 'str'}}
+    Tool Description: Delegate a specific task to one of the following coworkers: 
+    {topic} Question Author, {topic} SME, {topic} Technical Writer
+    The input to this tool should be the coworker, the task you want them to do, and ALL necessary context to execute the task, they know nothing about the task, so share absolute everything you know, don't reference things but instead explain them.
+
+    Tool Name: Ask question to coworker
+    Tool Arguments: {'question': {'description': 'The question to ask', 'type': 'str'}, 'context': {'description': 'The context for the question', 'type': 'str'}, 'coworker': {'description': 'The role/name of the coworker to ask', 'type': 'str'}}
+    Tool Description: Ask a specific question to one of the following coworkers: 
+    {topic} Question Author, {topic} SME, {topic} Technical Writer
+    The input to this tool should be the coworker, the question you have for them, and ALL necessary context to ask the question properly, they know nothing about the question, so share absolute everything you know, don't reference things but instead explain them.
 
 question_generator_agent:
   role: >
@@ -21,7 +29,6 @@ question_generator_agent:
   backstory: >
     You are a meticulous content creator who crafts balanced, clear, and domain-specific assessment questions about topics 
     like "{topic}". You focus on one question at a time, ensuring each is of the highest quality.
-  memory: True
 
 subject_matter_qa_agent:
   role: >
@@ -31,7 +38,6 @@ subject_matter_qa_agent:
   backstory: >
     You are a domain expert with a deep understanding of "{topic}". Your rigorous review of each question ensures that the 
     correct answers are factually accurate and reliable.
-  memory: True
 
 style_qa_agent:
   role: >
@@ -43,4 +49,3 @@ style_qa_agent:
   backstory: >
     You are an expert in formatting and language standards. Your keen eye for detail ensures each question meets the highest 
     stylistic standards.
-  memory: True
