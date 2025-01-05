@@ -1,5 +1,8 @@
+from datetime import datetime
+from enum import Enum
+from typing import Optional, Dict, Any
 from sqlalchemy import Column, String, Text, ForeignKey, DateTime, Enum as SQLAEnum, JSON, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
 import uuid
@@ -25,6 +28,12 @@ class FlowExecutionStatus(enum.Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     PAUSED = "paused"
+
+class LogLevel(str, Enum):
+    DEBUG = "debug"
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
 
 class User(Base):
     __tablename__ = "users"
@@ -139,3 +148,23 @@ class FlowExecution(Base):
     
     # Relationships
     user = relationship("User", back_populates="flow_executions")
+
+class FlowLog(Base):
+    __tablename__ = "flow_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    execution_id = Column(UUID(as_uuid=True), ForeignKey("flow_executions.id", ondelete="CASCADE"), nullable=False)
+    timestamp = Column(DateTime(timezone=True), nullable=False, server_default='now()')
+    level = Column(SQLAEnum(LogLevel, name='loglevel'), nullable=False)
+    message = Column(Text, nullable=False)
+    log_metadata = Column(JSONB)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "execution_id": str(self.execution_id),
+            "timestamp": self.timestamp.isoformat(),
+            "level": self.level.value,
+            "message": self.message,
+            "metadata": self.log_metadata or {}  # Keep the API response name as 'metadata'
+        }

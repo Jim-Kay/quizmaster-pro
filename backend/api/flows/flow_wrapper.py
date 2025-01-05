@@ -2,7 +2,8 @@ import os
 import hashlib
 import json
 import logging
-from typing import Any, Dict, Optional, Type, List
+import asyncio
+from typing import Any, Dict, Optional, Type, List, get_args
 from uuid import UUID, uuid4
 from datetime import datetime
 from enum import Enum
@@ -10,10 +11,11 @@ from pydantic import BaseModel, UUID4
 
 from crewai.flow.flow import Flow
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import FlowExecution as DBFlowExecution, FlowExecutionStatus
+from ..models import FlowExecution as DBFlowExecution, FlowExecutionStatus, FlowLog, LogLevel
 from ..database import async_session_maker
+from .db_logger import DatabaseLogger
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -40,7 +42,7 @@ class FlowExecution(BaseModel):
 class FlowExecutionCreate(BaseModel):
     flow_name: str
     initial_state: Optional[Dict[str, Any]] = None
-    use_cache: bool = True  # Allow caller to control caching per execution
+    use_cache: bool = True
 
 class FlowWrapper:
     """
@@ -49,26 +51,20 @@ class FlowWrapper:
     """
     
     def __init__(self, enable_caching: bool = True):
-        """Initialize the flow wrapper.
-        
-        Args:
-            enable_caching: Whether to enable caching globally. Can be overridden per execution.
-        """
-        # Registry of available flows
+        """Initialize the flow wrapper."""
         self._flows: Dict[str, Type[Flow]] = {}
-        # Create cache directory if it doesn't exist
-        self._cache_dir = "cache/flows"
+        self._project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        self._cache_dir = os.path.join(self._project_root, "cache", "flows")
         self._enable_caching = enable_caching
-        self._cache: Dict[str, Any] = {}  # In-memory cache
+        self._cache: Dict[str, Any] = {}
+        
         if enable_caching:
             os.makedirs(self._cache_dir, exist_ok=True)
     
     def _generate_cache_key(self, flow_name: str, initial_state: Dict[str, Any]) -> str:
         """Generate a cache key based on flow name and initial state."""
-        # Sort the initial state to ensure consistent hashing
         sorted_state = dict(sorted(initial_state.items())) if initial_state else {}
         state_str = json.dumps(sorted_state, sort_keys=True)
-        # Create hash of flow name and state
         hash_input = f"{flow_name}:{state_str}"
         return hashlib.sha256(hash_input.encode()).hexdigest()
     
@@ -109,21 +105,16 @@ class FlowWrapper:
     async def get_execution(self, execution_id: UUID4, user_id: UUID4) -> FlowExecution:
         """Get flow execution status and details."""
         async with async_session_maker() as session:
-            # Query the database for the execution
             stmt = select(DBFlowExecution).where(
-                DBFlowExecution.id == execution_id
+                DBFlowExecution.id == execution_id,
+                DBFlowExecution.user_id == user_id
             )
             result = await session.execute(stmt)
             db_execution = result.scalar_one_or_none()
             
             if not db_execution:
                 raise HTTPException(status_code=404, detail="Flow execution not found")
-                
-            # Check if user has access
-            if db_execution.user_id != user_id:
-                raise HTTPException(status_code=403, detail="Not authorized to access this flow execution")
             
-            # Convert DB model to Pydantic model
             return FlowExecution(
                 id=db_execution.id,
                 flow_name=db_execution.flow_name,
@@ -139,16 +130,13 @@ class FlowWrapper:
     
     async def create_execution(self, flow_create: FlowExecutionCreate, user_id: UUID4) -> FlowExecution:
         """Create a new flow execution."""
-        # Get flow class to validate it exists
         flow_class = self.get_flow_class(flow_create.flow_name)
         
-        # Generate cache key if caching is enabled
         cache_key = None
         if self._enable_caching and flow_create.use_cache:
             cache_key = self._generate_cache_key(flow_create.flow_name, flow_create.initial_state or {})
             if cache_key and (cached_data := self._load_from_cache(cache_key)):
                 logger.info(f"Found cached result for key: {cache_key}")
-                # Create execution with cached data
                 db_execution = DBFlowExecution(
                     id=uuid4(),
                     flow_name=flow_create.flow_name,
@@ -161,7 +149,6 @@ class FlowWrapper:
                     user_id=user_id
                 )
             else:
-                # Create new execution
                 db_execution = DBFlowExecution(
                     id=uuid4(),
                     flow_name=flow_create.flow_name,
@@ -171,7 +158,6 @@ class FlowWrapper:
                     user_id=user_id
                 )
         else:
-            # Create new execution without caching
             db_execution = DBFlowExecution(
                 id=uuid4(),
                 flow_name=flow_create.flow_name,
@@ -180,13 +166,11 @@ class FlowWrapper:
                 user_id=user_id
             )
         
-        # Save to database
         async with async_session_maker() as session:
             session.add(db_execution)
             await session.commit()
             await session.refresh(db_execution)
         
-        # Convert to Pydantic model and return
         return FlowExecution(
             id=db_execution.id,
             flow_name=db_execution.flow_name,
@@ -203,7 +187,6 @@ class FlowWrapper:
     async def start_execution(self, execution_id: UUID4, user_id: UUID4) -> FlowExecution:
         """Start a flow execution."""
         async with async_session_maker() as session:
-            # Get execution from database
             stmt = select(DBFlowExecution).where(
                 DBFlowExecution.id == execution_id,
                 DBFlowExecution.user_id == user_id
@@ -216,10 +199,6 @@ class FlowWrapper:
             
             if db_execution.status != FlowExecutionStatus.PENDING:
                 raise HTTPException(status_code=400, detail="Flow execution is not in pending state")
-            
-            # Create log file path
-            log_file = f"logs/flow_{execution_id}.log"
-            os.makedirs(os.path.dirname(log_file), exist_ok=True)
             
             # Get flow class and create instance
             flow_class = self.get_flow_class(db_execution.flow_name)
@@ -237,7 +216,6 @@ class FlowWrapper:
             
             # Convert execution state to proper state type
             state_dict = db_execution.state.copy() if db_execution.state else {}
-            logger.info(f"Starting flow with state: {state_dict}")
             state = state_type(**state_dict)
             
             # Create flow instance with initial state
@@ -246,52 +224,47 @@ class FlowWrapper:
             # Update execution in database
             db_execution.status = FlowExecutionStatus.RUNNING
             db_execution.started_at = datetime.utcnow()
-            db_execution.log_file = log_file
             await session.commit()
             await session.refresh(db_execution)
             
+            # Set up database logger
+            db_logger = DatabaseLogger(f"flow_{execution_id}", execution_id)
+            await db_logger.start_worker()
+            
             # Start flow execution asynchronously
             try:
-                # Redirect stdout to log file with UTF-8 encoding
-                with open(log_file, 'w', encoding='utf-8') as f:
-                    import sys
-                    original_stdout = sys.stdout
-                    sys.stdout = f
-                    try:
-                        # Run flow in a separate thread to avoid asyncio issues
-                        import concurrent.futures
-                        with concurrent.futures.ThreadPoolExecutor() as executor:
-                            future = executor.submit(flow.kickoff)
-                            result = future.result()  # Wait for completion
-                            
-                            # Save results to cache if enabled
-                            if self._enable_caching and db_execution.cache_key:
-                                cache_data = {
-                                    'raw_output': str(result),
-                                    'raw_state': str(flow.state),
-                                    'state_dict': flow.state.dict() if hasattr(flow.state, 'dict') else None,
-                                    'created_at': datetime.utcnow().isoformat()
-                                }
-                                self._save_to_cache(db_execution.cache_key, cache_data)
-                            
-                            # Update execution with final state and status
-                            db_execution.state = flow.state.dict()
-                            db_execution.status = FlowExecutionStatus.COMPLETED
-                            db_execution.completed_at = datetime.utcnow()
-                            await session.commit()
-                            await session.refresh(db_execution)
-                            logger.debug(f"Flow execution completed with state: {json.dumps(db_execution.state, indent=2)}")
-                    finally:
-                        sys.stdout = original_stdout
+                # Run flow in a separate thread to avoid asyncio issues
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(flow.kickoff)
+                    result = future.result()  # Wait for completion
+                    
+                    # Save results to cache if enabled
+                    if self._enable_caching and db_execution.cache_key:
+                        cache_data = {
+                            'raw_output': str(result),
+                            'raw_state': str(flow.state),
+                            'state_dict': flow.state.dict() if hasattr(flow.state, 'dict') else None,
+                            'created_at': datetime.utcnow().isoformat()
+                        }
+                        self._save_to_cache(db_execution.cache_key, cache_data)
+                    
+                    # Update execution with final state and status
+                    db_execution.state = flow.state.dict()
+                    db_execution.status = FlowExecutionStatus.COMPLETED
+                    db_execution.completed_at = datetime.utcnow()
+                    await session.commit()
+                    await session.refresh(db_execution)
+                    await db_logger.ainfo("Flow execution completed successfully", {
+                        "state": db_execution.state
+                    })
             except Exception as e:
+                await db_logger.aerror(f"Flow execution failed: {str(e)}")
                 db_execution.status = FlowExecutionStatus.FAILED
                 db_execution.error = str(e)
                 db_execution.completed_at = datetime.utcnow()
                 await session.commit()
                 await session.refresh(db_execution)
-                
-                with open(log_file, 'a', encoding='utf-8') as f:
-                    f.write(f"\nError: {str(e)}")
                 
                 # Cache error state if enabled
                 if self._enable_caching and db_execution.cache_key:
@@ -302,6 +275,8 @@ class FlowWrapper:
                     }
                     self._save_to_cache(db_execution.cache_key, error_data)
                 raise
+            finally:
+                await db_logger.stop_worker()
             
             # Convert to Pydantic model and return
             return FlowExecution(
@@ -350,30 +325,6 @@ class FlowWrapper:
             executions.append(execution)
         
         return executions
-    
-    async def get_logs(self, execution_id: UUID4, user_id: UUID4) -> str:
-        """Get logs for a flow execution."""
-        execution = await self.get_execution(execution_id, user_id)
-        if not execution:
-            raise HTTPException(status_code=404, detail="Flow execution not found")
-            
-        # Get the log file path
-        log_file = os.path.join(
-            os.path.dirname(__file__), 
-            "logs", 
-            f"flow_{execution_id}.log"
-        )
-        
-        if not os.path.exists(log_file):
-            logger.warning(f"No log file found for flow execution {execution_id}")
-            return ""
-            
-        try:
-            with open(log_file, "r") as f:
-                return f.read()
-        except Exception as e:
-            logger.error(f"Error reading log file for flow execution {execution_id}: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
     
     async def delete_execution(self, execution_id: UUID4, user_id: UUID4) -> None:
         """Delete a flow execution."""

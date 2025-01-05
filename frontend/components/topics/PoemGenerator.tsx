@@ -1,19 +1,17 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react';
-import { PencilIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { topicsApi } from '@/api/topics';
+import { useSession } from 'next-auth/react';
+import { Button, Icon, useDisclosure } from '@chakra-ui/react';
+import { PencilIcon } from '@heroicons/react/24/outline';
+import { topicsApi } from '../../api/topics';
+import { useFlowExecution } from '../../hooks/useFlowExecution';
+import { useLogStream } from '../../hooks/useLogStream';
+import { PoemGeneratorModal } from './PoemGeneratorModal';
 
 interface PoemGeneratorProps {
   topicId: string;
-}
-
-interface FlowExecution {
-  id: string;
-  flow_name: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  error?: string;
 }
 
 interface Topic {
@@ -25,20 +23,38 @@ interface Topic {
 }
 
 export function PoemGenerator({ topicId }: PoemGeneratorProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [executionId, setExecutionId] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string>('');
-  const [status, setStatus] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: session } = useSession();
   const logsEndRef = useRef<HTMLDivElement>(null);
-  const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [error, setError] = useState<string | null>(null);
+  const lastPollTimeRef = useRef<number>(0);
+  const POLL_INTERVAL = 5000; // 5 seconds between polls
 
   const { data: topic } = useQuery<Topic>({
     queryKey: ['topic', topicId],
     queryFn: () => topicsApi.getTopic(topicId),
     retry: 1,
     staleTime: 30000,
+  });
+
+  const {
+    executionId,
+    status,
+    isGenerating,
+    createExecution,
+    startExecution,
+    pollStatus
+  } = useFlowExecution({
+    onError: setError
+  });
+
+  const {
+    logs,
+    setLogs,
+    startStream,
+    stopStream
+  } = useLogStream({
+    onError: setError
   });
 
   // Auto-scroll logs to bottom
@@ -48,228 +64,86 @@ export function PoemGenerator({ topicId }: PoemGeneratorProps) {
     }
   }, [logs]);
 
-  // Cleanup function for the reader
-  useEffect(() => {
-    return () => {
-      if (readerRef.current) {
-        readerRef.current.cancel();
-      }
-    };
-  }, []);
-
   // Poll for status when execution is running
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (executionId && status !== 'completed' && status !== 'failed') {
       interval = setInterval(async () => {
-        try {
-          console.log(`Polling status for execution ${executionId}...`);
-          const response = await fetch(`/api/flows/executions/${executionId}`);
-          const execution: FlowExecution = await response.json();
-          console.log(`Current status: ${execution.status}`);
-          setStatus(execution.status);
-          if (execution.status === 'completed' || execution.status === 'failed') {
-            console.log(`Execution ${executionId} ${execution.status}`);
-            if (execution.status === 'failed' && execution.error) {
-              setError(execution.error);
-            }
-            clearInterval(interval);
-            setIsGenerating(false);
-          }
-        } catch (error) {
-          console.error('Error polling status:', error);
-          setError('Failed to poll execution status');
+        const now = Date.now();
+        // Only poll if enough time has passed
+        if (now - lastPollTimeRef.current >= POLL_INTERVAL) {
+          lastPollTimeRef.current = now;
+          await pollStatus();
         }
-      }, 2000);
+      }, POLL_INTERVAL);
     }
-    return () => clearInterval(interval);
-  }, [executionId, status]);
-
-  const startLogStream = async (executionId: string) => {
-    try {
-      console.log(`Starting log stream for execution ${executionId}...`);
-      const logsResponse = await fetch(`/api/flows/executions/${executionId}/logs`);
-      
-      if (!logsResponse.ok) {
-        throw new Error(`Failed to fetch logs: ${logsResponse.statusText}`);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
       }
-      
-      if (!logsResponse.body) {
-        throw new Error('No response body received');
-      }
+    };
+  }, [executionId, status, pollStatus]);
 
-      const reader = logsResponse.body.getReader();
-      readerRef.current = reader;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          console.log('Log stream completed');
-          break;
-        }
-        const text = new TextDecoder().decode(value);
-        console.log('Received log chunk:', text);
-        setLogs(prevLogs => prevLogs + text);
-      }
-    } catch (error) {
-      console.error('Error streaming logs:', error);
-      setError('Failed to stream logs');
-      throw error;
-    }
-  };
-
-  const startPoemGeneration = async () => {
-    if (!topic) return;
+  const startGeneration = useCallback(async () => {
+    if (!topic || !session?.accessToken) return;
 
     try {
-      setIsGenerating(true);
       setError(null);
       setLogs('');
-      setShowModal(true);
-      
-      console.log('Creating flow execution...');
-      const createResponse = await fetch('/api/flows/executions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          flow_name: 'poem',
-          initial_state: {
-            topic_title: topic.title,
-            topic_description: topic.description
-          }
-        })
-      });
-      
-      if (!createResponse.ok) {
-        throw new Error(`Failed to create execution: ${createResponse.statusText}`);
-      }
+      onOpen();
 
-      const execution: FlowExecution = await createResponse.json();
-      console.log(`Created execution with ID: ${execution.id}`);
-      setExecutionId(execution.id);
-      setStatus(execution.status);
-
-      console.log('Starting flow execution...');
-      const startResponse = await fetch(`/api/flows/executions/${execution.id}/start`, {
-        method: 'POST'
+      const execution = await createExecution('poem', {
+        topic_title: topic.title,
+        topic_description: `Write a creative poem about ${topic.title}. ${topic.description}`
       });
 
-      if (!startResponse.ok) {
-        throw new Error(`Failed to start execution: ${startResponse.statusText}`);
-      }
+      if (!execution) return;
 
-      // Start streaming logs in a separate promise
-      startLogStream(execution.id).catch(error => {
-        console.error('Log streaming error:', error);
-        setError('Failed to stream logs');
-      });
+      const started = await startExecution(execution.id);
+      if (!started) return;
 
+      await startStream(execution.id);
     } catch (error) {
       console.error('Error generating poem:', error);
       setError(error instanceof Error ? error.message : 'Unknown error occurred');
-      setStatus('failed');
-      setIsGenerating(false);
     }
-  };
+  }, [topic, session?.accessToken, createExecution, startExecution, startStream, onOpen]);
 
-  const retryGeneration = () => {
+  const handleClose = useCallback(() => {
+    stopStream();
+    onClose();
     setError(null);
-    setStatus(null);
-    setExecutionId(null);
-    startPoemGeneration();
-  };
-
-  const closeModal = () => {
-    if (readerRef.current) {
-      readerRef.current.cancel();
-    }
-    setShowModal(false);
-    setIsGenerating(false);
-    setError(null);
-    setStatus(null);
-    setExecutionId(null);
-    setLogs('');
-  };
+  }, [stopStream, onClose]);
 
   if (!topic) return null;
 
   return (
     <>
-      <button
-        onClick={startPoemGeneration}
-        disabled={isGenerating}
-        className={`inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 ${
-          isGenerating ? 'opacity-50 cursor-not-allowed' : ''
-        }`}
+      <Button
+        onClick={startGeneration}
+        isDisabled={!session?.accessToken || isGenerating}
+        colorScheme="purple"
+        leftIcon={<Icon as={PencilIcon} boxSize={5} />}
+        isLoading={isGenerating}
+        loadingText="Writing Poem..."
+        size="md"
+        variant="solid"
+        _hover={{ transform: 'translateY(-1px)' }}
+        _active={{ transform: 'translateY(0)' }}
+        transition="all 0.2s"
       >
-        <PencilIcon className="w-5 h-5 mr-2" />
-        {isGenerating ? 'Writing Poem...' : 'Write Poem'}
-      </button>
+        Write Poem
+      </Button>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-medium">Writing a Poem</h3>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-500"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-auto p-4">
-              {error ? (
-                <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                  <p className="text-red-600">{error}</p>
-                  <button
-                    onClick={retryGeneration}
-                    className="mt-2 text-sm text-red-600 hover:text-red-500 underline"
-                  >
-                    Retry Generation
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <div className="flex items-center">
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className={`h-2.5 rounded-full ${
-                            status === 'completed'
-                              ? 'bg-green-600 w-full'
-                              : status === 'failed'
-                              ? 'bg-red-600'
-                              : 'bg-blue-600 w-3/4 animate-pulse'
-                          }`}
-                        />
-                      </div>
-                      <span className="ml-2 text-sm text-gray-500">
-                        {status || 'pending'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-black text-green-400 font-mono text-sm rounded-md p-4 h-96 overflow-auto">
-                    <pre>{logs || 'Initializing...'}</pre>
-                    <div ref={logsEndRef} />
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="p-4 border-t">
-              <button
-                onClick={closeModal}
-                className="w-full inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PoemGeneratorModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        logs={logs}
+        error={error}
+        status={status}
+        onRetry={startGeneration}
+        logsEndRef={logsEndRef}
+      />
     </>
   );
 }
