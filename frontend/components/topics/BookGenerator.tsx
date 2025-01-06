@@ -149,11 +149,10 @@ export function BookGenerator({ topicId }: BookGeneratorProps) {
             'Authorization': `Bearer ${session.accessToken}`
           },
           body: JSON.stringify({
-            flow_name: 'book',
+            flow_name: 'poem',
             initial_state: {
-              topic: topic.title,
-              title: topic.title,
-              goal: `Write a book about ${topic.title}. ${topic.description}`
+              topic_title: topic.title,
+              topic_description: topic.description
             },
             use_cache: true
           })

@@ -54,15 +54,32 @@ export function PoemGeneratorModal({
             <Alert status="error" variant="left-accent">
               <AlertIcon />
               <VStack align="start" spacing={2} flex={1}>
-                <AlertDescription>{error}</AlertDescription>
-                <Button
-                  variant="link"
-                  colorScheme="red"
-                  onClick={onRetry}
-                  size="sm"
-                >
-                  Retry Generation
-                </Button>
+                <AlertDescription>
+                  {error === 'Authentication failed. Please sign in again.' ? (
+                    <>
+                      Your session has expired. Please{' '}
+                      <Button
+                        variant="link"
+                        colorScheme="red"
+                        onClick={() => window.location.href = '/auth/signin'}
+                        size="sm"
+                      >
+                        sign in
+                      </Button>
+                      {' '}again.
+                    </>
+                  ) : error}
+                </AlertDescription>
+                {error !== 'Authentication failed. Please sign in again.' && (
+                  <Button
+                    variant="link"
+                    colorScheme="red"
+                    onClick={onRetry}
+                    size="sm"
+                  >
+                    Retry Generation
+                  </Button>
+                )}
               </VStack>
             </Alert>
           ) : (

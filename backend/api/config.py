@@ -1,20 +1,30 @@
 import os
+from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-# JWT configuration
-JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key")
-JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+class Settings(BaseSettings):
+    """Application settings."""
+    # JWT configuration
+    jwt_secret: str = os.getenv("NEXTAUTH_SECRET", "development-secret")
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
 
-# Database configuration
-POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "quizmaster")
+    # Database configuration
+    postgres_user: str = os.getenv("POSTGRES_USER", "postgres")
+    postgres_password: str = os.getenv("POSTGRES_PASSWORD", "postgres")
+    postgres_host: str = os.getenv("POSTGRES_HOST", "localhost")
+    postgres_port: str = os.getenv("POSTGRES_PORT", "5432")
+    postgres_db: str = os.getenv("POSTGRES_DB", "quizmaster")
 
-# Test database configuration
-TEST_DB_NAME = os.getenv("TEST_DB_NAME", "test_db")
+    # Test database configuration
+    test_db_name: str = os.getenv("TEST_DB_NAME", "test_db")
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+# Create global settings instance
+settings = Settings()

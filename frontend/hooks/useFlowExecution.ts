@@ -19,29 +19,40 @@ export function useFlowExecution({ onError }: UseFlowExecutionOptions = {}) {
   const [isGenerating, setIsGenerating] = useState(false);
   const executionInProgressRef = useRef(false);
   const lastExecutionTimeRef = useRef(0);
-  const MIN_EXECUTION_INTERVAL = 1000; // 1 second minimum between executions
+  const MIN_EXECUTION_INTERVAL = 3000; // 3 seconds minimum between executions
+  const executionStateRef = useRef<'creating' | 'starting' | 'running' | null>(null);
 
   const createExecution = useCallback(async (flowName: string, initialState: any) => {
     if (!session?.accessToken) return null;
 
-    // Check if execution is in progress or if not enough time has passed
+    // Check execution state
+    if (executionStateRef.current !== null) {
+      console.log(`Execution already in ${executionStateRef.current} state, skipping...`);
+      return null;
+    }
+
+    // Check if not enough time has passed
     const now = Date.now();
-    if (executionInProgressRef.current || now - lastExecutionTimeRef.current < MIN_EXECUTION_INTERVAL) {
-      console.log('Execution in progress or too soon, skipping...');
+    if (now - lastExecutionTimeRef.current < MIN_EXECUTION_INTERVAL) {
+      console.log('Too soon since last execution, skipping...');
       return null;
     }
 
     try {
-      executionInProgressRef.current = true;
+      executionStateRef.current = 'creating';
       setIsGenerating(true);
       lastExecutionTimeRef.current = now;
 
+      // Create a more stable idempotency key
       const idempotencyKey = Buffer.from(JSON.stringify({
+        flow_name: flowName,
         ...initialState,
-        timestamp: Math.floor(now / MIN_EXECUTION_INTERVAL) // Round to nearest interval
+        // Round to nearest 5 seconds to prevent rapid retries
+        timestamp: Math.floor(now / 5000)
       })).toString('base64');
 
-      const createResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/executions`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(':3000', ':8000') || 'http://localhost:8000';
+      const createResponse = await fetch(`${apiUrl}/api/flows/executions`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -69,14 +80,25 @@ export function useFlowExecution({ onError }: UseFlowExecutionOptions = {}) {
       const message = error instanceof Error ? error.message : 'Failed to create execution';
       onError?.(message);
       return null;
+    } finally {
+      executionStateRef.current = null;
+      setIsGenerating(false);
     }
   }, [session?.accessToken, onError]);
 
   const startExecution = useCallback(async (executionId: string) => {
     if (!session?.accessToken) return false;
 
+    // Check execution state
+    if (executionStateRef.current !== null) {
+      console.log(`Execution already in ${executionStateRef.current} state, skipping...`);
+      return false;
+    }
+
     try {
-      const startResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/executions/${executionId}/start`, {
+      executionStateRef.current = 'starting';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(':3000', ':8000') || 'http://localhost:8000';
+      const startResponse = await fetch(`${apiUrl}/api/flows/executions/${executionId}/start`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -97,49 +119,43 @@ export function useFlowExecution({ onError }: UseFlowExecutionOptions = {}) {
 
       setExecutionId(executionId);
       setStatus('running');
+      executionStateRef.current = 'running';
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to start execution';
       onError?.(message);
-      executionInProgressRef.current = false;
+      executionStateRef.current = null;
       return false;
     }
   }, [session?.accessToken, onError]);
 
   const pollStatus = useCallback(async () => {
-    if (!session?.accessToken || !executionId) return;
+    if (!executionId || !session?.accessToken) return;
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/executions/${executionId}`, {
-        headers: {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(':3000', ':8000') || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/flows/executions/${executionId}`, {
+        headers: { 
           'Authorization': `Bearer ${session.accessToken}`
         }
       });
 
-      if (response.status === 401) {
-        throw new Error('Unauthorized. Please sign in again.');
+      if (!response.ok) {
+        throw new Error(`Failed to poll status: ${response.statusText}`);
       }
 
-      const execution: FlowExecution = await response.json();
-      setStatus(execution.status);
+      const data = await response.json();
+      setStatus(data.status);
 
-      if (execution.status === 'completed' || execution.status === 'failed') {
+      // Clear execution state if we're done
+      if (data.status === 'completed' || data.status === 'failed') {
+        executionStateRef.current = null;
         setIsGenerating(false);
-        executionInProgressRef.current = false;
-        if (execution.status === 'failed' && execution.error) {
-          onError?.(execution.error);
-        }
       }
-
-      return execution;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to poll status';
-      onError?.(message);
-      setIsGenerating(false);
-      executionInProgressRef.current = false;
-      return null;
+      console.error('Error polling status:', error);
     }
-  }, [session?.accessToken, executionId, onError]);
+  }, [executionId, session?.accessToken]);
 
   return {
     executionId,

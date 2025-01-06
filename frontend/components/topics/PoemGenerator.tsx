@@ -85,29 +85,52 @@ export function PoemGenerator({ topicId }: PoemGeneratorProps) {
   }, [executionId, status, pollStatus]);
 
   const startGeneration = useCallback(async () => {
-    if (!topic || !session?.accessToken) return;
+    if (!topic || !session?.accessToken || isGenerating) {
+      console.log('Cannot start generation:', {
+        hasTopic: !!topic,
+        hasSession: !!session?.accessToken,
+        isGenerating
+      });
+      return;
+    }
 
     try {
       setError(null);
       setLogs('');
       onOpen();
 
+      // Create execution
       const execution = await createExecution('poem', {
         topic_title: topic.title,
-        topic_description: `Write a creative poem about ${topic.title}. ${topic.description}`
+        topic_description: topic.description
       });
 
-      if (!execution) return;
+      if (!execution) {
+        console.log('Failed to create execution or execution already in progress');
+        setError('Failed to start poem generation. Please try again in a few seconds.');
+        return;
+      }
 
+      // Start execution
       const started = await startExecution(execution.id);
-      if (!started) return;
+      if (!started) {
+        console.log('Failed to start execution');
+        setError('Failed to start poem generation. Please try again.');
+        return;
+      }
 
-      await startStream(execution.id);
+      // Start log streaming
+      try {
+        await startStream(execution.id);
+      } catch (error) {
+        console.error('Error starting log stream:', error);
+        setError('Failed to connect to log stream. The poem may still be generating.');
+      }
     } catch (error) {
       console.error('Error generating poem:', error);
       setError(error instanceof Error ? error.message : 'Unknown error occurred');
     }
-  }, [topic, session?.accessToken, createExecution, startExecution, startStream, onOpen]);
+  }, [topic, session?.accessToken, isGenerating, createExecution, startExecution, startStream, onOpen, setError]);
 
   const handleClose = useCallback(() => {
     stopStream();

@@ -15,7 +15,10 @@ export function useLogStream({ onError }: UseLogStreamOptions = {}) {
   const RECONNECT_DELAY = 1000; // 1 second
 
   const startStream = useCallback(async (executionId: string) => {
-    if (!session?.accessToken) return;
+    if (!session?.accessToken) {
+      onError?.('Not authenticated');
+      return;
+    }
 
     try {
       // Close existing WebSocket if any
@@ -26,23 +29,41 @@ export function useLogStream({ onError }: UseLogStreamOptions = {}) {
       // Reset reconnect attempts
       reconnectAttemptsRef.current = 0;
 
-      // Create new WebSocket connection
-      const wsUrl = `${process.env.NEXT_PUBLIC_API_URL?.replace('http', 'ws')}/api/flows/executions/${executionId}/logs/ws`;
-      const ws = new WebSocket(wsUrl);
+      // Create new WebSocket connection with token
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(':3000', ':8000') || 'http://localhost:8000';
+      const wsUrl = `${apiUrl.replace('http:', 'ws:').replace('https:', 'wss:')}/api/flows/executions/${executionId}/logs/ws`;
+      
+      // Add token as query parameter - no need to URL encode since it's already properly formatted
+      const url = new URL(wsUrl);
+      url.searchParams.append('token', `Bearer ${session.accessToken}`);
+      
+      console.log('Connecting to WebSocket...', url.toString());
+      const ws = new WebSocket(url.toString());
       webSocketRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setLogs(''); // Clear logs on new connection
+      };
 
       ws.onmessage = (event) => {
         try {
           const log = JSON.parse(event.data);
+          if (log.error) {
+            onError?.(log.error);
+            return;
+          }
+          
           setLogs(prev => {
-            // Format log message based on level
+            // Format log message based on level and timestamp
             const timestamp = new Date(log.timestamp).toLocaleTimeString();
-            const level = log.level.toUpperCase();
+            const level = (log.level || 'INFO').toUpperCase();
             const formattedMessage = `[${timestamp}] ${level}: ${log.message}\n`;
             return prev + formattedMessage;
           });
         } catch (error) {
           console.error('Error parsing log message:', error);
+          onError?.('Failed to parse log message');
         }
       };
 
@@ -51,14 +72,34 @@ export function useLogStream({ onError }: UseLogStreamOptions = {}) {
         onError?.('Failed to connect to log stream');
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket closed');
-        // Attempt to reconnect if not manually closed
-        if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            reconnectAttemptsRef.current++;
-            startStream(executionId);
-          }, RECONNECT_DELAY);
+      ws.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+        
+        // Handle specific close codes
+        switch (event.code) {
+          case 4001:
+            onError?.('Authentication failed. Please sign in again.');
+            return;
+          case 4004:
+            onError?.('Flow execution not found or access denied');
+            return;
+          case 4005:
+            onError?.('Error verifying flow execution');
+            return;
+          case 1000:
+            console.log('WebSocket closed normally');
+            return;
+          default:
+            // Attempt to reconnect for other codes
+            if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+              console.log(`Reconnecting... Attempt ${reconnectAttemptsRef.current + 1}/${MAX_RECONNECT_ATTEMPTS}`);
+              reconnectTimeoutRef.current = setTimeout(() => {
+                reconnectAttemptsRef.current++;
+                startStream(executionId);
+              }, RECONNECT_DELAY);
+            } else {
+              onError?.('Maximum reconnection attempts reached');
+            }
         }
       };
 

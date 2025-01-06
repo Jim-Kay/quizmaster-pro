@@ -33,43 +33,45 @@ class DatabaseLogger(logging.Logger):
         async with async_session_maker() as session:
             while not self._stop_event.is_set():
                 try:
-                    # Get all available logs (up to 100 at a time)
-                    logs = []
-                    for _ in range(100):
-                        try:
-                            log = self._log_queue.get_nowait()
-                            logs.append(log)
-                        except asyncio.QueueEmpty:
-                            break
-
-                    if logs:
-                        # Bulk insert logs
+                    # Process logs one at a time for real-time streaming
+                    try:
+                        log = await self._log_queue.get()
+                        # Insert single log
                         await session.execute(
                             insert(FlowLog),
-                            [log.dict() for log in logs]
+                            [log.dict()]
                         )
                         await session.commit()
 
-                        # Notify subscribers
-                        for log in logs:
-                            await self._notify_subscribers(session, log)
+                        # Notify subscribers immediately
+                        await self._notify_subscribers(session, log)
 
-                    # Small delay to prevent tight loop
-                    await asyncio.sleep(0.1)
+                    except asyncio.QueueEmpty:
+                        # Small delay when queue is empty
+                        await asyncio.sleep(0.1)
+                        continue
 
                 except Exception as e:
-                    print(f"Error processing logs: {e}")
+                    print(f"Error processing log: {e}")
                     await asyncio.sleep(1)  # Longer delay on error
 
     async def _notify_subscribers(self, session: AsyncSession, log: FlowLog):
         """Notify subscribers of new log entries using PostgreSQL NOTIFY."""
         notification = {
             "execution_id": str(self.execution_id),
-            "log": log.to_dict()
+            "log": {
+                "id": str(log.id) if log.id else None,
+                "execution_id": str(log.execution_id),
+                "timestamp": log.timestamp.isoformat(),
+                "level": log.level.value,
+                "message": log.message,
+                "metadata": log.log_metadata
+            }
         }
+        import json
         await session.execute(
             f"SELECT pg_notify('flow_logs', :payload)",
-            {"payload": notification}
+            {"payload": json.dumps(notification)}
         )
 
     async def alog(self, level: LogLevel, msg: str, metadata: Optional[Dict[str, Any]] = None):

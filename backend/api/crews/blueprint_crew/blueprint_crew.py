@@ -6,7 +6,10 @@ from datetime import datetime
 import os
 import uuid
 import yaml
-from crewai import Agent, Task, Crew, Process
+from crewai.agent import Agent
+from crewai.task import Task
+from crewai.crew import Crew
+from crewai.process import Process
 from api.schemas.pydantic_schemas import BlueprintPydantic
 from api.schemas.enums import CognitiveLevelEnum
 

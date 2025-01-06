@@ -1,7 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional, Dict, Any
-from sqlalchemy import Column, String, Text, ForeignKey, DateTime, Enum as SQLAEnum, JSON, Integer
+from sqlalchemy import (
+    Column, String, Text, ForeignKey, DateTime, 
+    Enum as SQLAEnum, JSON, Integer, Index
+)
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
@@ -51,6 +54,7 @@ class User(Base):
     topics = relationship("Topic", back_populates="user")
     blueprints = relationship("Blueprint", back_populates="user")
     flow_executions = relationship("FlowExecution", back_populates="user")
+    idempotency_keys = relationship("IdempotencyKey", back_populates="user")
 
 class Topic(Base):
     __tablename__ = "topics"
@@ -148,6 +152,25 @@ class FlowExecution(Base):
     
     # Relationships
     user = relationship("User", back_populates="flow_executions")
+
+class IdempotencyKey(Base):
+    """Model for storing idempotency keys to prevent duplicate flow executions."""
+    __tablename__ = "idempotency_keys"
+
+    key = Column(String, primary_key=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
+    execution_id = Column(UUID(as_uuid=True), ForeignKey("flow_executions.id"), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False, default=lambda: datetime.utcnow() + timedelta(days=1))
+
+    # Indexes
+    __table_args__ = (
+        Index("idx_idempotency_keys_user_id", "user_id"),
+        Index("idx_idempotency_keys_created_at", "created_at"),
+    )
+
+    # Relationships
+    user = relationship("User", back_populates="idempotency_keys")
 
 class FlowLog(Base):
     __tablename__ = "flow_logs"

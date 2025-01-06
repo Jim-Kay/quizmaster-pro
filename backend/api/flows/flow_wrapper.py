@@ -184,113 +184,77 @@ class FlowWrapper:
             cache_key=db_execution.cache_key
         )
     
-    async def start_execution(self, execution_id: UUID4, user_id: UUID4) -> FlowExecution:
+    async def start_execution(self, execution_id: UUID4, user_id: UUID4) -> None:
         """Start a flow execution."""
-        async with async_session_maker() as session:
-            stmt = select(DBFlowExecution).where(
-                DBFlowExecution.id == execution_id,
-                DBFlowExecution.user_id == user_id
-            )
-            result = await session.execute(stmt)
-            db_execution = result.scalar_one_or_none()
-            
-            if not db_execution:
-                raise HTTPException(status_code=404, detail="Flow execution not found")
-            
-            if db_execution.status != FlowExecutionStatus.PENDING:
-                raise HTTPException(status_code=400, detail="Flow execution is not in pending state")
-            
-            # Get flow class and create instance
-            flow_class = self.get_flow_class(db_execution.flow_name)
-            
-            # Get the state type from the Flow's _initial_state_T
-            state_type = getattr(flow_class, "_initial_state_T", None)
-            if state_type is None:
-                # Fallback to looking at the Flow's base class
-                for base in flow_class.__bases__:
-                    if hasattr(base, "__origin__") and base.__origin__ is Flow:
-                        state_type = get_args(base)[0]
-                        break
-                else:
-                    raise ValueError("Could not determine state type for flow")
-            
-            # Convert execution state to proper state type
-            state_dict = db_execution.state.copy() if db_execution.state else {}
-            state = state_type(**state_dict)
-            
-            # Create flow instance with initial state
-            flow = flow_class(state=state)
-            
-            # Update execution in database
-            db_execution.status = FlowExecutionStatus.RUNNING
-            db_execution.started_at = datetime.utcnow()
-            await session.commit()
-            await session.refresh(db_execution)
-            
-            # Set up database logger
-            db_logger = DatabaseLogger(f"flow_{execution_id}", execution_id)
-            await db_logger.start_worker()
-            
-            # Start flow execution asynchronously
-            try:
-                # Run flow in a separate thread to avoid asyncio issues
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(flow.kickoff)
-                    result = future.result()  # Wait for completion
-                    
-                    # Save results to cache if enabled
-                    if self._enable_caching and db_execution.cache_key:
-                        cache_data = {
-                            'raw_output': str(result),
-                            'raw_state': str(flow.state),
-                            'state_dict': flow.state.dict() if hasattr(flow.state, 'dict') else None,
-                            'created_at': datetime.utcnow().isoformat()
-                        }
-                        self._save_to_cache(db_execution.cache_key, cache_data)
-                    
-                    # Update execution with final state and status
-                    db_execution.state = flow.state.dict()
-                    db_execution.status = FlowExecutionStatus.COMPLETED
-                    db_execution.completed_at = datetime.utcnow()
-                    await session.commit()
-                    await session.refresh(db_execution)
-                    await db_logger.ainfo("Flow execution completed successfully", {
-                        "state": db_execution.state
-                    })
-            except Exception as e:
-                await db_logger.aerror(f"Flow execution failed: {str(e)}")
-                db_execution.status = FlowExecutionStatus.FAILED
-                db_execution.error = str(e)
-                db_execution.completed_at = datetime.utcnow()
-                await session.commit()
-                await session.refresh(db_execution)
+        logger.info(f"Starting flow execution: {execution_id}")
+        
+        try:
+            async with async_session_maker() as session:
+                # Get execution
+                stmt = select(DBFlowExecution).where(
+                    DBFlowExecution.id == execution_id,
+                    DBFlowExecution.user_id == user_id
+                )
+                result = await session.execute(stmt)
+                execution = result.scalar_one_or_none()
                 
-                # Cache error state if enabled
-                if self._enable_caching and db_execution.cache_key:
-                    error_data = {
-                        'error': str(e),
-                        'raw_state': str(flow.state) if flow else None,
-                        'created_at': datetime.utcnow().isoformat()
-                    }
-                    self._save_to_cache(db_execution.cache_key, error_data)
-                raise
-            finally:
-                await db_logger.stop_worker()
-            
-            # Convert to Pydantic model and return
-            return FlowExecution(
-                id=db_execution.id,
-                flow_name=db_execution.flow_name,
-                status=db_execution.status.value,
-                state=db_execution.state,
-                error=db_execution.error,
-                created_at=db_execution.created_at,
-                started_at=db_execution.started_at,
-                completed_at=db_execution.completed_at,
-                log_file=db_execution.log_file,
-                cache_key=db_execution.cache_key
-            )
+                if not execution:
+                    raise HTTPException(status_code=404, detail="Flow execution not found")
+                    
+                # Check if execution is in correct state
+                if execution.status != FlowExecutionStatus.PENDING:
+                    logger.error(f"Flow execution {execution_id} is not in pending state: {execution.status}")
+                    # If we have a cached result, update the execution state
+                    if execution.cache_key:
+                        cached_result = self._load_from_cache(execution.cache_key)
+                        if cached_result:
+                            logger.info(f"Using cached result for execution {execution_id}")
+                            execution.state = cached_result.get('state')
+                            execution.status = FlowExecutionStatus.COMPLETED
+                            execution.completed_at = datetime.utcnow()
+                            await session.commit()
+                            return
+                    raise HTTPException(status_code=400, detail=f"Flow execution is not in pending state: {execution.status}")
+                
+                # Update status to running
+                execution.status = FlowExecutionStatus.RUNNING
+                execution.started_at = datetime.utcnow()
+                await session.commit()
+                
+                try:
+                    # Get flow class
+                    flow_class = self.get_flow_class(execution.flow_name)
+                    if not flow_class:
+                        raise ValueError(f"Flow {execution.flow_name} not found")
+                        
+                    # Initialize flow with state
+                    flow = flow_class(
+                        state=execution.state,
+                        execution_id=execution_id,
+                        user_id=user_id,
+                        db_session=async_session_maker,
+                        logger=logger
+                    )
+                    
+                    # Run flow
+                    await flow.run()
+                    
+                    # Update status to completed
+                    execution.status = FlowExecutionStatus.COMPLETED
+                    execution.completed_at = datetime.utcnow()
+                    await session.commit()
+                    
+                except Exception as e:
+                    logger.error(f"Error running flow execution {execution_id}: {str(e)}", exc_info=True)
+                    execution.status = FlowExecutionStatus.FAILED
+                    execution.error = str(e)
+                    execution.completed_at = datetime.utcnow()
+                    await session.commit()
+                    raise
+                    
+        except Exception as e:
+            logger.error(f"Error starting flow execution {execution_id}: {str(e)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
     
     async def list_executions(self, 
                             status: Optional[FlowStatus] = None,

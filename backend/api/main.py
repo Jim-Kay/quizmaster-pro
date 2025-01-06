@@ -24,7 +24,11 @@ app = FastAPI(
 # Configure CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js development server
+    allow_origins=[
+        "http://localhost:3000",  # Next.js development server
+        "ws://localhost:3000",    # WebSocket for development
+        "wss://localhost:3000",   # Secure WebSocket for development
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -96,12 +100,12 @@ except ImportError as e:
 # Set the flow wrapper in the router
 flow_execution.flow_wrapper = flow_wrapper
 
-# Include flow execution router
+# Add flow execution router without global auth dependency
+# Each endpoint will handle its own auth as needed
 app.include_router(
     flow_execution.router,
     prefix="/api/flows",
-    tags=["flows"],
-    dependencies=[Depends(get_current_user)]
+    tags=["flow_execution"]
 )
 
 @app.get("/api/health")

@@ -3,21 +3,40 @@ import asyncio
 import logging
 import hashlib
 import json
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from uuid import UUID
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Header
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import UUID4
+from fastapi import (
+    APIRouter,
+    WebSocket,
+    HTTPException,
+    Depends,
+    BackgroundTasks,
+    Header,
+    Query,
+)
+from fastapi.responses import StreamingResponse
+from starlette.websockets import WebSocketDisconnect
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text, insert, func
+from datetime import datetime, timedelta
+from urllib.parse import unquote
 
+from ..database import get_db
+from ..auth import get_current_user, verify_token
+from ..models import (
+    FlowExecution as DBFlowExecution,
+    IdempotencyKey,
+    FlowExecutionStatus,
+    FlowLog,
+    LogLevel
+)
 from ..flows.flow_wrapper import (
     FlowWrapper,
-    FlowExecution,
     FlowExecutionCreate,
-    FlowStatus
+    FlowStatus,
+    FlowExecution as FlowExecutionModel
 )
-from ..dependencies import get_current_user
-from ..database import get_db
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -29,26 +48,35 @@ router = APIRouter(tags=["flows"])
 # This will be set by main.py
 flow_wrapper: FlowWrapper = None
 
-# In-memory cache for idempotency keys
-idempotency_cache: Dict[str, FlowExecution] = {}
-
-@router.post("/executions", response_model=FlowExecution, status_code=201)
+@router.post("/executions", response_model=FlowExecutionModel, status_code=201)
 async def create_flow_execution(
     flow_create: FlowExecutionCreate,
     current_user_id: UUID4 = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     x_idempotency_key: Optional[str] = Header(None)
-) -> FlowExecution:
+) -> FlowExecutionModel:
     """Create a new flow execution."""
     try:
         logger.info(f"Creating flow execution for flow: {flow_create.flow_name}")
         logger.info(f"Initial state: {flow_create.initial_state}")
         logger.info(f"Idempotency key: {x_idempotency_key}")
         
-        # Check idempotency cache if key provided
-        if x_idempotency_key and x_idempotency_key in idempotency_cache:
-            logger.info(f"Found cached execution for idempotency key: {x_idempotency_key}")
-            return idempotency_cache[x_idempotency_key]
+        # Check idempotency key in database if provided
+        if x_idempotency_key:
+            stmt = select(IdempotencyKey).where(
+                IdempotencyKey.key == x_idempotency_key,
+                IdempotencyKey.user_id == current_user_id,
+                IdempotencyKey.expires_at > func.now()  # Only consider non-expired keys
+            )
+            result = await db.execute(stmt)
+            existing_key = result.scalar_one_or_none()
+            
+            if existing_key and existing_key.execution_id:
+                logger.info(f"Found existing execution for idempotency key: {x_idempotency_key}")
+                # Get the existing execution
+                execution = await flow_wrapper.get_execution(existing_key.execution_id, current_user_id)
+                if execution:
+                    return execution
         
         if not flow_wrapper:
             logger.error("Flow wrapper not initialized")
@@ -75,10 +103,19 @@ async def create_flow_execution(
         execution = await flow_wrapper.create_execution(flow_create, current_user_id)
         logger.info(f"Flow execution created with ID: {execution.id}")
         
-        # Cache execution if idempotency key provided
+        # Store idempotency key in database if provided
         if x_idempotency_key:
-            logger.info(f"Caching execution for idempotency key: {x_idempotency_key}")
-            idempotency_cache[x_idempotency_key] = execution
+            logger.info(f"Storing idempotency key in database: {x_idempotency_key}")
+            idempotency_key = IdempotencyKey(
+                key=x_idempotency_key,
+                user_id=current_user_id,
+                execution_id=execution.id,
+                created_at=datetime.utcnow(),
+                expires_at=datetime.utcnow() + timedelta(days=1)
+            )
+            db.add(idempotency_key)
+            await db.commit()
+            logger.info(f"Stored idempotency key: {x_idempotency_key} for execution: {execution.id}")
             
         return execution
     except HTTPException:
@@ -87,13 +124,13 @@ async def create_flow_execution(
         logger.error(f"Error creating flow execution: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/executions/{execution_id}/start", response_model=FlowExecution)
+@router.post("/executions/{execution_id}/start", response_model=FlowExecutionModel)
 async def start_flow_execution(
     execution_id: UUID4,
     background_tasks: BackgroundTasks,
     current_user_id: UUID4 = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-) -> FlowExecution:
+) -> FlowExecutionModel:
     """Start a flow execution."""
     try:
         logger.info(f"Starting flow execution: {execution_id}")
@@ -122,12 +159,12 @@ async def start_flow_execution(
         logger.error(f"Error starting flow execution: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/executions/{execution_id}", response_model=FlowExecution)
+@router.get("/executions/{execution_id}", response_model=FlowExecutionModel)
 async def get_flow_execution(
     execution_id: UUID4,
     current_user_id: UUID4 = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-) -> FlowExecution:
+) -> FlowExecutionModel:
     """Get flow execution status and details."""
     try:
         logger.info(f"Getting flow execution status: {execution_id}")
@@ -145,13 +182,13 @@ async def get_flow_execution(
         logger.error(f"Error getting flow execution: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/executions", response_model=List[FlowExecution])
+@router.get("/executions", response_model=List[FlowExecutionModel])
 async def list_flow_executions(
     status: Optional[FlowStatus] = None,
     flow_name: Optional[str] = None,
     current_user_id: UUID4 = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-) -> List[FlowExecution]:
+) -> List[FlowExecutionModel]:
     """List flow executions with optional filtering."""
     try:
         if not flow_wrapper:
@@ -162,6 +199,15 @@ async def list_flow_executions(
     except Exception as e:
         logger.error(f"Error listing flow executions: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+async def get_logs(db: AsyncSession, execution_id: str) -> List[Dict[str, Any]]:
+    """Get all logs for a flow execution."""
+    stmt = select(FlowLog).where(
+        FlowLog.execution_id == execution_id
+    ).order_by(FlowLog.timestamp)
+    result = await db.execute(stmt)
+    logs = result.scalars().all()
+    return [log.to_dict() for log in logs]
 
 @router.get("/executions/{execution_id}/logs")
 async def get_flow_logs(
@@ -252,6 +298,131 @@ async def get_flow_logs(
         logger.error(f"Error getting flow logs for {execution_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.websocket("/executions/{execution_id}/logs/ws")
+async def websocket_logs(
+    websocket: WebSocket,
+    execution_id: UUID4,
+    token: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """WebSocket endpoint for streaming flow execution logs."""
+    try:
+        # Accept connection first to allow proper error responses
+        await websocket.accept()
+        
+        # Verify token and get user_id
+        try:
+            # First URL decode the token, then remove Bearer prefix
+            decoded_token = unquote(token)
+            decoded_token = decoded_token.replace("Bearer ", "").strip()
+            user_id = await verify_token(decoded_token)
+            if not user_id:
+                raise HTTPException(status_code=401, detail="Invalid token")
+        except Exception as e:
+            logger.error(f"Token verification error: {str(e)}")
+            await websocket.send_json({"error": "Authentication failed"})
+            await websocket.close(code=4001)
+            return
+            
+        # Get execution and verify ownership
+        execution = await flow_wrapper.get_execution(execution_id, user_id)
+        if not execution:
+            logger.error(f"Flow execution not found or unauthorized: {execution_id}")
+            await websocket.send_json({"error": "Flow execution not found or unauthorized"})
+            await websocket.close(code=4004)
+            return
+            
+        # Log token details for debugging
+        logger.debug(f"Raw token: {token}")
+        logger.debug(f"Token length: {len(token) if token else 0}")
+        
+        # URL decode the token and remove Bearer prefix if present
+        decoded_token = token.replace('Bearer ', '')
+        logger.debug(f"Decoded token: {decoded_token}")
+        logger.debug(f"Decoded token length: {len(decoded_token)}")
+        
+        # Verify token
+        try:
+            user_id = await verify_token(decoded_token)
+            if not user_id:
+                logger.warning(f"Token verification failed for execution {execution_id}")
+                await websocket.send_text(json.dumps({
+                    "error": "Invalid authentication token"
+                }))
+                await websocket.close(code=4001)
+                return
+                
+            logger.info(f"WebSocket authenticated for user {user_id}, execution {execution_id}")
+            
+        except Exception as e:
+            logger.error(f"Token verification error: {str(e)}", exc_info=True)
+            await websocket.send_text(json.dumps({
+                "error": f"Authentication error: {str(e)}"
+            }))
+            await websocket.close(code=4001)
+            return
+            
+        # First send existing logs
+        try:
+            logs = await get_logs(db, str(execution_id))
+            if logs:
+                for log in logs:
+                    await websocket.send_json(log)
+            else:
+                await websocket.send_json({
+                    "level": "INFO",
+                    "message": "No logs available yet",
+                    "timestamp": str(datetime.utcnow())
+                })
+        except Exception as e:
+            logger.error(f"Error sending existing logs: {str(e)}", exc_info=True)
+            await websocket.send_json({
+                "level": "ERROR",
+                "message": f"Failed to retrieve existing logs: {str(e)}",
+                "timestamp": str(datetime.utcnow())
+            })
+
+        # Listen for new logs
+        try:
+            while True:
+                msg = await websocket.receive_text()
+                try:
+                    msg = json.loads(msg)
+                    if msg.get("type") == "log" and msg.get("payload"):
+                        await websocket.send_json(msg["payload"])
+                    else:
+                        logger.warning(f"Missing required fields in notification: {msg}")
+                        continue
+                except Exception as e:
+                    logger.error(f"Error processing notification: {str(e)}", exc_info=True)
+                    continue
+                    
+        except WebSocketDisconnect as e:
+            if e.code == 1000:
+                logger.info(f"WebSocket connection closed normally for execution {execution_id}")
+            else:
+                logger.error(f"WebSocket error for execution {execution_id}: {str(e)}", exc_info=True)
+                try:
+                    await websocket.send_json({
+                        "level": "ERROR",
+                        "message": f"WebSocket error: {str(e)}",
+                        "timestamp": str(datetime.utcnow())
+                    })
+                except:
+                    pass
+        finally:
+            try:
+                await websocket.close()
+            except:
+                pass
+                
+    except Exception as e:
+        logger.error(f"WebSocket error: {str(e)}", exc_info=True)
+        try:
+            await websocket.close(code=1011)
+        except:
+            pass
+
 @router.delete("/executions/{execution_id}")
 async def delete_flow_execution(
     execution_id: UUID4,
@@ -277,7 +448,7 @@ async def stop_flow_execution(
     execution_id: UUID4,
     current_user_id: UUID4 = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-) -> FlowExecution:
+) -> FlowExecutionModel:
     """Stop a running flow execution."""
     try:
         if not flow_wrapper:
@@ -296,7 +467,7 @@ async def pause_flow_execution(
     execution_id: UUID4,
     current_user_id: UUID4 = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-) -> FlowExecution:
+) -> FlowExecutionModel:
     """Pause a running flow execution."""
     try:
         if not flow_wrapper:
@@ -315,7 +486,7 @@ async def resume_flow_execution(
     execution_id: UUID4,
     current_user_id: UUID4 = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
-) -> FlowExecution:
+) -> FlowExecutionModel:
     """Resume a paused flow execution."""
     try:
         if not flow_wrapper:
