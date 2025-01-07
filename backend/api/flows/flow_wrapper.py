@@ -13,8 +13,9 @@ from crewai.flow.flow import Flow
 from fastapi import HTTPException
 from sqlalchemy import select, insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import FlowExecution as DBFlowExecution, FlowExecutionStatus, FlowLog, LogLevel
-from ..database import async_session_maker
+
+from api.core.models import FlowExecution as DBFlowExecution, FlowExecutionStatus, FlowLog, LogLevel
+from api.core.database import async_session_maker
 from .db_logger import DatabaseLogger
 
 # Set up logging
@@ -228,13 +229,7 @@ class FlowWrapper:
                         raise ValueError(f"Flow {execution.flow_name} not found")
                         
                     # Initialize flow with state
-                    flow = flow_class(
-                        state=execution.state,
-                        execution_id=execution_id,
-                        user_id=user_id,
-                        db_session=async_session_maker,
-                        logger=logger
-                    )
+                    flow = flow_class(state=execution.state)
                     
                     # Run flow
                     await flow.run()

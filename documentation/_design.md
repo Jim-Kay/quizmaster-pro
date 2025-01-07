@@ -37,9 +37,15 @@ The platform currently implements the following core features:
 5. **Backend Architecture**
    - FastAPI backend with async support
    - PostgreSQL with asyncpg driver
+   - Core module structure:
+     * `base.py`: Base SQLAlchemy model and common mixins
+     * `config.py`: Environment-based configuration
+     * `database.py`: Database connection and session management
+     * `models.py`: SQLAlchemy models
    - Dependency injection pattern
    - Modular router structure
-   - Environment-based configuration
+   - Absolute imports for better maintainability
+   - Flow-based architecture for AI operations
 
 6. **Testing Infrastructure**
    - Playwright for E2E testing
@@ -1140,3 +1146,43 @@ The application supports two authentication modes:
    - Profile information editing
    - Password change functionality
    - Account linking options
+
+## Technical Architecture
+
+=== Backend Structure
+
+The backend follows a modular architecture with clear separation of concerns:
+
+1. **Core Module** (`api/core/`)
+   - `base.py`: Defines the SQLAlchemy Base class and common mixins (TimestampMixin, SoftDeleteMixin)
+   - `config.py`: Environment configuration using Pydantic settings
+   - `database.py`: Database connection, session management, and initialization
+   - `models.py`: SQLAlchemy models for all database entities
+
+2. **Flows Module** (`api/flows/`)
+   - `db_logger.py`: Database logging utilities for flow execution
+   - `flow_wrapper.py`: CrewAI flow execution and state management
+   - Uses absolute imports from core module
+
+3. **Routers Module** (`api/routers/`)
+   - Topic management routes
+   - Blueprint generation routes
+   - Flow execution routes
+   - User settings routes
+
+4. **Dependencies Module** (`api/dependencies.py`)
+   - Common FastAPI dependencies
+   - Database session management
+   - Authentication utilities
+
+5. **Authentication Module** (`api/auth.py`)
+   - JWT token handling
+   - User authentication
+   - Password hashing
+
+The backend enforces these architectural principles:
+- All imports use absolute paths (e.g., `from api.core.models import User`)
+- Core module dependencies are properly layered (base -> database -> models)
+- Database sessions are managed through dependency injection
+- Flow execution is isolated in the flows module
+- Authentication and authorization are centralized

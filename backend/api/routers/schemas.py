@@ -271,3 +271,74 @@ class FlowExecutionCreate(BaseModel):
     flow_name: str
     initial_state: Dict[str, Any] = {}
     use_cache: bool = True
+
+class FlowExecutionBase(BaseModel):
+    """Base schema for flow execution"""
+    flow_id: str = Field(..., description="Unique identifier for the flow")
+    status: str = Field(default="pending", description="Current status of the flow execution")
+    error: Optional[str] = Field(None, description="Error message if execution failed")
+
+class FlowExecutionCreate(FlowExecutionBase):
+    """Schema for creating a flow execution"""
+    pass
+
+class FlowExecutionUpdate(BaseModel):
+    """Schema for updating a flow execution"""
+    status: Optional[str] = Field(None, description="New status of the flow execution")
+    error: Optional[str] = Field(None, description="Error message if execution failed")
+
+class FlowExecutionResponse(FlowExecutionBase):
+    """Schema for flow execution response"""
+    id: int = Field(..., description="Unique identifier for the flow execution")
+    user_id: int = Field(..., description="ID of the user who created the flow execution")
+    created_at: datetime = Field(..., description="When the flow execution was created")
+    updated_at: datetime = Field(..., description="When the flow execution was last updated")
+    logs: List["FlowLogResponse"] = Field(default_factory=list, description="List of logs for this flow execution")
+
+    class Config:
+        """Pydantic config"""
+        from_attributes = True
+
+class FlowLogBase(BaseModel):
+    """Base schema for flow log"""
+    level: str = Field(default="INFO", description="Log level")
+    message: str = Field(..., description="Log message")
+
+class FlowLogCreate(FlowLogBase):
+    """Schema for creating a flow log"""
+    pass
+
+class FlowLogResponse(FlowLogBase):
+    """Schema for flow log response"""
+    id: int = Field(..., description="Unique identifier for the log entry")
+    flow_execution_id: int = Field(..., description="ID of the flow execution this log belongs to")
+    created_at: datetime = Field(..., description="When the log was created")
+
+    class Config:
+        """Pydantic config"""
+        from_attributes = True
+
+class TopicBase(BaseModel):
+    """Base schema for topic"""
+    title: str = Field(..., description="Topic title")
+    description: str = Field(..., description="Topic description")
+
+class TopicCreate(TopicBase):
+    """Schema for creating a topic"""
+    pass
+
+class TopicUpdate(BaseModel):
+    """Schema for updating a topic"""
+    title: Optional[str] = Field(None, description="New topic title")
+    description: Optional[str] = Field(None, description="New topic description")
+
+class TopicResponse(TopicBase):
+    """Schema for topic response"""
+    id: int = Field(..., description="Unique identifier for the topic")
+    user_id: int = Field(..., description="ID of the user who created the topic")
+    created_at: datetime = Field(..., description="When the topic was created")
+    updated_at: datetime = Field(..., description="When the topic was last updated")
+
+    class Config:
+        """Pydantic config"""
+        from_attributes = True

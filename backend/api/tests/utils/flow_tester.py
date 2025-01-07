@@ -13,7 +13,12 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 from pydantic import UUID4
 
-from api.auth import MOCK_USER_ID, JWT_SECRET
+# Use the same auth configuration as auth.py
+MOCK_USER_ID = UUID4("550e8400-e29b-41d4-a716-446655440000")
+NEXTAUTH_SECRET = os.getenv("NEXTAUTH_SECRET")
+if not NEXTAUTH_SECRET:
+    print("NEXTAUTH_SECRET not set, using development secret")
+    NEXTAUTH_SECRET = "development-secret"
 
 
 class FlowTester:
@@ -22,7 +27,7 @@ class FlowTester:
     def __init__(self):
         """Initialize the flow tester."""
         self.api_base_url = "http://localhost:8000"
-        self.mock_user_id = MOCK_USER_ID  # Use the same mock user ID as auth.py
+        self.mock_user_id = MOCK_USER_ID  # Use the same mock user ID
         
     def create_test_token(self, user_id: Optional[UUID4] = None) -> str:
         """Create a test JWT token using the same format as auth.py."""
@@ -31,10 +36,11 @@ class FlowTester:
             "sub": str(user_id or self.mock_user_id),  # Convert UUID to string
             "email": "test@example.com",
             "name": "Test User",
-            "iat": now,
-            "exp": now + timedelta(hours=1)
+            "iat": int(now.timestamp()),  # Match NextAuth.js format
+            "jti": str(uuid.uuid4()),  # Add unique token ID
+            "exp": int((now + timedelta(days=30)).timestamp())  # Add expiry
         }
-        token = jwt.encode(token_data, JWT_SECRET, algorithm="HS256")
+        token = jwt.encode(token_data, NEXTAUTH_SECRET, algorithm="HS256")
         print(f"Created JWT token with user ID: {user_id or self.mock_user_id}")
         return token
         

@@ -1,86 +1,77 @@
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Annotated, Optional
-from jwt import decode, PyJWTError, InvalidTokenError, ExpiredSignatureError
-import os
-import uuid
-import logging
-from uuid import UUID
-from datetime import datetime, timedelta
-import jwt
+"""Authentication utilities"""
 
-logger = logging.getLogger(__name__)
+import os
+from datetime import datetime, timedelta
+from typing import Optional
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from .core.config import get_settings
+from .core.database import get_db
+from .core.models import User
+
+# Get settings
+settings = get_settings()
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# OAuth2 scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Security scheme for bearer token
-security = HTTPBearer()
+security = OAuth2PasswordBearer(tokenUrl="token")
 
-# JWT configuration - use the same secret as NextAuth.js
-NEXTAUTH_SECRET = os.getenv("NEXTAUTH_SECRET")
-if not NEXTAUTH_SECRET:
-    logger.warning("NEXTAUTH_SECRET not set, using development secret")
-    NEXTAUTH_SECRET = "development-secret"
-
-async def verify_token(token: str) -> Optional[UUID]:
-    """Verify JWT token and return user ID if valid."""
+async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
+    """Get current authenticated user from token"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
     try:
-        # Remove Bearer prefix if present
-        if token.startswith('Bearer '):
-            token = token.replace('Bearer ', '')
+        # Verify token
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
             
-        # Log token details for debugging
-        logger.debug(f"Raw token: {token}")
-        logger.debug(f"Token length: {len(token)}")
-        logger.debug(f"Using JWT secret: {NEXTAUTH_SECRET[:5]}...")
+        # Get user from database
+        result = await db.execute(select(User).filter(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise credentials_exception
             
-        try:
-            # First try to decode without verification to see the claims
-            unverified_payload = jwt.decode(token, options={"verify_signature": False})
-            logger.debug(f"Unverified token claims: {unverified_payload}")
-        except Exception as e:
-            logger.error(f"Could not decode token (even without verification): {str(e)}")
-            
-        # Now try to decode with verification
-        payload = jwt.decode(
-            token,
-            NEXTAUTH_SECRET,
-            algorithms=["HS256"],
-            options={
-                "verify_signature": True,
-                "verify_exp": False,  # NextAuth.js doesn't set exp claim
-                "verify_iat": False,  # NextAuth.js handles iat differently
-                "require": ["sub"]
-            }
-        )
-        
-        # Extract and validate user ID
-        user_id = payload.get('sub')
-        if not user_id:
-            logger.warning("Token missing 'sub' claim")
-            return None
-            
-        try:
-            return UUID(user_id)
-        except ValueError:
-            logger.warning(f"Invalid user ID format in token: {user_id}")
-            return None
-            
-    except jwt.ExpiredSignatureError:
-        logger.warning("Token has expired")
-        return None
-    except jwt.InvalidTokenError as e:
-        logger.warning(f"Invalid token: {str(e)}")
-        return None
-    except Exception as e:
-        logger.error(f"Error verifying token: {str(e)}", exc_info=True)
-        return None
+        return user
+    except JWTError:
+        raise credentials_exception
 
-async def get_current_user(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> UUID:
-    """Get current user from bearer token."""
-    try:
-        user_id = await verify_token(credentials.credentials)
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid authentication token")
-        return user_id
-    except Exception as e:
-        logger.error(f"Error in get_current_user: {str(e)}")
-        raise HTTPException(status_code=401, detail="Invalid authentication token")
+async def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create JWT access token"""
+    to_encode = data.copy()
+    
+    # Set expiration
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    to_encode.update({"exp": expire})
+    
+    # Create JWT token
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_jwt
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password against hash"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """Get password hash"""
+    return pwd_context.hash(password)

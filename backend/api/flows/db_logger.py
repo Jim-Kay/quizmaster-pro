@@ -5,8 +5,9 @@ from typing import Optional, Dict, Any
 from uuid import UUID
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import FlowLog, LogLevel
-from ..database import async_session_maker
+
+from api.core.models import FlowLog, LogLevel
+from api.core.database import async_session_maker
 
 class DatabaseLogger(logging.Logger):
     """A logger that writes to both the database and standard output."""
