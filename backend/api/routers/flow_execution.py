@@ -34,7 +34,7 @@ async def get_flow_executions(
     """Get all flow executions for the current user"""
     result = await db.execute(
         select(FlowExecution)
-        .filter(FlowExecution.user_id == current_user.id)
+        .filter(FlowExecution.user_id == current_user.user_id)
         .options(joinedload(FlowExecution.logs))
     )
     return result.scalars().all()
@@ -46,7 +46,7 @@ async def create_flow_execution(
     db: AsyncSession = Depends(get_db)
 ) -> FlowExecution:
     """Create a new flow execution"""
-    db_flow_execution = FlowExecution(**flow_execution.model_dump(), user_id=current_user.id)
+    db_flow_execution = FlowExecution(**flow_execution.model_dump(), user_id=current_user.user_id)
     db.add(db_flow_execution)
     try:
         await db.commit()
@@ -66,7 +66,7 @@ async def get_flow_execution(
     """Get a specific flow execution"""
     result = await db.execute(
         select(FlowExecution)
-        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.id)
+        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.user_id)
         .options(joinedload(FlowExecution.logs))
     )
     flow_execution = result.scalar_one_or_none()
@@ -84,7 +84,7 @@ async def update_flow_execution(
     """Update a flow execution"""
     result = await db.execute(
         select(FlowExecution)
-        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.id)
+        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.user_id)
     )
     flow_execution = result.scalar_one_or_none()
     if not flow_execution:
@@ -113,7 +113,7 @@ async def delete_flow_execution(
     """Delete a flow execution"""
     result = await db.execute(
         select(FlowExecution)
-        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.id)
+        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.user_id)
     )
     flow_execution = result.scalar_one_or_none()
     if not flow_execution:
@@ -138,7 +138,7 @@ async def create_flow_log(
     # Verify flow execution exists and belongs to user
     result = await db.execute(
         select(FlowExecution)
-        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.id)
+        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.user_id)
     )
     flow_execution = result.scalar_one_or_none()
     if not flow_execution:
@@ -166,7 +166,7 @@ async def get_flow_logs(
     # Verify flow execution exists and belongs to user
     result = await db.execute(
         select(FlowExecution)
-        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.id)
+        .filter(FlowExecution.id == flow_execution_id, FlowExecution.user_id == current_user.user_id)
     )
     flow_execution = result.scalar_one_or_none()
     if not flow_execution:

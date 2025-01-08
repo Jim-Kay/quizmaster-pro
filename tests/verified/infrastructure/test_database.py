@@ -23,6 +23,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 from sqlalchemy.pool import NullPool
 from dotenv import load_dotenv
+from urllib.parse import urlparse
 
 # Import from backend package
 from api.core.database import get_async_session
@@ -41,23 +42,30 @@ settings = get_settings()
 # Database configuration
 DATABASE_URL = f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.TEST_DB_NAME}"
 
+def get_database_url():
+    return DATABASE_URL
+
 async def test_database_connection():
-    """Test basic database connectivity"""
-    logger.info("Testing database connection...")
+    """Test database connection"""
+    logging.info("Testing database connection...")
     
-    engine = create_async_engine(
-        DATABASE_URL,
-        echo=False,
-        poolclass=NullPool
-    )
+    # Get database URL components
+    db_url = get_database_url()
+    logging.info(f"Database URL: {db_url}")
+    
+    # Extract user and database name from URL
+    parsed = urlparse(db_url)
+    logging.info(f"Database User: {parsed.username}")
+    logging.info(f"Database Name: {parsed.path[1:]}")  # Remove leading '/'
     
     try:
+        engine = create_async_engine(db_url)
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-            logger.info("Database connection successful")
-            return True
+        logging.info("Database connection successful")
+        return True
     except Exception as e:
-        logger.error(f"Database connection failed: {e}")
+        logging.error(f"Database connection failed: {str(e)}")
         return False
 
 async def test_database_operations():

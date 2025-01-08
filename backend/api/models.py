@@ -13,9 +13,13 @@ import enum
 from datetime import datetime
 from .database import Base
 
-class LLMProvider(enum.Enum):
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
+class LLMProvider(str, Enum):
+    """LLM provider enum"""
+    OPENAI = "OPENAI"
+    ANTHROPIC = "ANTHROPIC"
+
+    def __str__(self):
+        return self.value
 
 class CognitiveLevelEnum(enum.Enum):
     REMEMBER = "REMEMBER"
@@ -44,7 +48,7 @@ class User(Base):
     user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False)
     name = Column(String(255))
-    llm_provider = Column(SQLAEnum(LLMProvider), default=LLMProvider.OPENAI)
+    llm_provider = Column(SQLAEnum(LLMProvider, name='llmprovider', auto_name=True), default=LLMProvider.OPENAI)
     encrypted_openai_key = Column(String)  # Will store encrypted key as base64
     encrypted_anthropic_key = Column(String)  # Will store encrypted key as base64
     created_at = Column(DateTime(timezone=True), server_default=func.now())

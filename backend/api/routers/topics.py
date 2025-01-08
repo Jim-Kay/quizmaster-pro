@@ -28,7 +28,7 @@ async def get_topics(
     """Get all topics for the current user"""
     result = await db.execute(
         select(Topic)
-        .filter(Topic.user_id == current_user.id)
+        .filter(Topic.user_id == current_user.user_id)
         .options(joinedload(Topic.blueprints))
     )
     return result.scalars().all()
@@ -40,7 +40,7 @@ async def create_topic(
     db: AsyncSession = Depends(get_db)
 ) -> Topic:
     """Create a new topic"""
-    db_topic = Topic(**topic.model_dump(), user_id=current_user.id)
+    db_topic = Topic(**topic.model_dump(), user_id=current_user.user_id)
     db.add(db_topic)
     try:
         await db.commit()
@@ -60,7 +60,7 @@ async def get_topic(
     """Get a specific topic"""
     result = await db.execute(
         select(Topic)
-        .filter(Topic.id == topic_id, Topic.user_id == current_user.id)
+        .filter(Topic.id == topic_id, Topic.user_id == current_user.user_id)
         .options(joinedload(Topic.blueprints))
     )
     topic = result.scalar_one_or_none()
@@ -78,7 +78,7 @@ async def update_topic(
     """Update a topic"""
     result = await db.execute(
         select(Topic)
-        .filter(Topic.id == topic_id, Topic.user_id == current_user.id)
+        .filter(Topic.id == topic_id, Topic.user_id == current_user.user_id)
     )
     topic = result.scalar_one_or_none()
     if not topic:
@@ -107,7 +107,7 @@ async def delete_topic(
     """Delete a topic"""
     result = await db.execute(
         select(Topic)
-        .filter(Topic.id == topic_id, Topic.user_id == current_user.id)
+        .filter(Topic.id == topic_id, Topic.user_id == current_user.user_id)
     )
     topic = result.scalar_one_or_none()
     if not topic:
@@ -130,7 +130,7 @@ async def get_blueprint_count(
     """Get the count of blueprints for a topic"""
     result = await db.execute(
         select(Topic)
-        .filter(Topic.id == topic_id, Topic.user_id == current_user.id)
+        .filter(Topic.id == topic_id, Topic.user_id == current_user.user_id)
         .options(joinedload(Topic.blueprints))
     )
     topic = result.scalar_one_or_none()

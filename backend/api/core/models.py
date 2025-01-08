@@ -3,7 +3,7 @@
 import enum
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLAlchemyEnum
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLAlchemyEnum, UUID
 from sqlalchemy.orm import relationship
 
 from .base import Base, TimestampMixin
@@ -34,13 +34,14 @@ class User(Base, TimestampMixin):
     """User model"""
     __tablename__ = "users"
     
-    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID(as_uuid=True), primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
+    name = Column(String, nullable=False)
     
     # Settings
     llm_provider = Column(SQLAlchemyEnum(LLMProvider, name="llm_provider_enum"), default=LLMProvider.OPENAI)
-    encrypted_api_key = Column(String, nullable=True)
+    encrypted_openai_key = Column(String, nullable=True)
+    encrypted_anthropic_key = Column(String, nullable=True)
     
     # Relationships
     topics = relationship("Topic", back_populates="user")
@@ -50,10 +51,10 @@ class Topic(Base, TimestampMixin):
     """Topic model"""
     __tablename__ = "topics"
     
-    id = Column(Integer, primary_key=True, index=True)
+    topic_id = Column(UUID(as_uuid=True), primary_key=True, index=True)
     title = Column(String)
     description = Column(Text)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
     
     # Relationships
     user = relationship("User", back_populates="topics")
@@ -63,8 +64,8 @@ class Blueprint(Base, TimestampMixin):
     """Learning blueprint model"""
     __tablename__ = "blueprints"
     
-    id = Column(Integer, primary_key=True, index=True)
-    topic_id = Column(Integer, ForeignKey("topics.id"))
+    blueprint_id = Column(Integer, primary_key=True, index=True)
+    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.topic_id"))
     title = Column(String)
     description = Column(Text)
     
@@ -76,8 +77,8 @@ class TerminalObjective(Base, TimestampMixin):
     """Terminal learning objective model"""
     __tablename__ = "terminal_objectives"
     
-    id = Column(Integer, primary_key=True, index=True)
-    blueprint_id = Column(Integer, ForeignKey("blueprints.id"))
+    terminal_objective_id = Column(Integer, primary_key=True, index=True)
+    blueprint_id = Column(Integer, ForeignKey("blueprints.blueprint_id"))
     title = Column(String)
     description = Column(Text)
     
@@ -89,8 +90,8 @@ class EnablingObjective(Base, TimestampMixin):
     """Enabling learning objective model"""
     __tablename__ = "enabling_objectives"
     
-    id = Column(Integer, primary_key=True, index=True)
-    terminal_objective_id = Column(Integer, ForeignKey("terminal_objectives.id"))
+    enabling_objective_id = Column(Integer, primary_key=True, index=True)
+    terminal_objective_id = Column(Integer, ForeignKey("terminal_objectives.terminal_objective_id"))
     title = Column(String)
     description = Column(Text)
     
@@ -101,8 +102,8 @@ class FlowExecution(Base, TimestampMixin):
     """Flow execution model"""
     __tablename__ = "flow_executions"
     
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    flow_execution_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
     flow_id = Column(String)
     status = Column(SQLAlchemyEnum(FlowExecutionStatus, name="flow_status_enum"), default=FlowExecutionStatus.PENDING)
     error = Column(Text, nullable=True)
@@ -115,8 +116,8 @@ class FlowLog(Base, TimestampMixin):
     """Flow execution log model"""
     __tablename__ = "flow_logs"
     
-    id = Column(Integer, primary_key=True, index=True)
-    flow_execution_id = Column(Integer, ForeignKey("flow_executions.id"))
+    flow_log_id = Column(Integer, primary_key=True, index=True)
+    flow_execution_id = Column(Integer, ForeignKey("flow_executions.flow_execution_id"))
     level = Column(SQLAlchemyEnum(LogLevel, name="log_level_enum"), default=LogLevel.INFO)
     message = Column(Text)
     

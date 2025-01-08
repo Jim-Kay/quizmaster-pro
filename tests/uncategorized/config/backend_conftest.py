@@ -85,12 +85,12 @@ async def test_engine():
         # Create test user directly in the database
         await conn.execute(
             text("""
-                INSERT INTO users (id, email, name)
-                VALUES (:id, :email, :name)
-                ON CONFLICT (id) DO NOTHING
+                INSERT INTO users (user_id, email, name)
+                VALUES (:user_id, :email, :name)
+                ON CONFLICT (user_id) DO NOTHING
             """),
             {
-                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "user_id": "550e8400-e29b-41d4-a716-446655440000",
                 "email": "test@example.com",
                 "name": "Test User"
             }
@@ -132,7 +132,7 @@ async def test_session(test_engine):
 async def test_user(test_session):
     """Get the test user for each test."""
     user_query = await test_session.execute(
-        select(User).where(User.id == uuid.UUID("550e8400-e29b-41d4-a716-446655440000"))
+        select(User).where(User.user_id == uuid.UUID("550e8400-e29b-41d4-a716-446655440000"))
     )
     user = user_query.scalar_one()
     return user

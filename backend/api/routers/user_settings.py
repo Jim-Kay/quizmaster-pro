@@ -18,7 +18,7 @@ async def get_user_settings(
     db: AsyncSession = Depends(get_db)
 ):
     """Get the current user's settings"""
-    query = select(User).where(User.id == current_user_id)
+    query = select(User).where(User.user_id == current_user_id)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
     
@@ -39,7 +39,7 @@ async def update_user_settings(
 ):
     """Update the current user's settings"""
     # Get current user
-    query = select(User).where(User.id == current_user_id)
+    query = select(User).where(User.user_id == current_user_id)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
     
@@ -65,12 +65,12 @@ async def update_user_settings(
             update_data["encrypted_anthropic_key"] = None
     
     if update_data:
-        query = update(User).where(User.id == current_user_id).values(**update_data)
+        query = update(User).where(User.user_id == current_user_id).values(**update_data)
         await db.execute(query)
         await db.commit()
     
     # Get updated user for response
-    query = select(User).where(User.id == current_user_id)
+    query = select(User).where(User.user_id == current_user_id)
     result = await db.execute(query)
     updated_user = result.scalar_one()
     
@@ -86,7 +86,7 @@ async def validate_api_keys(
     db: AsyncSession = Depends(get_db)
 ):
     """Validate the stored API keys by making test requests"""
-    query = select(User).where(User.id == current_user_id)
+    query = select(User).where(User.user_id == current_user_id)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
     

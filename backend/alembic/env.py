@@ -24,7 +24,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all models to ensure they're known to SQLAlchemy
-from api.models import (
+from api.core.models import (
     Base,
     User,
     Topic,
@@ -33,11 +33,9 @@ from api.models import (
     EnablingObjective,
     FlowExecution,
     FlowLog,
-    UserSettings,
     FlowExecutionStatus,
     LogLevel,
     LLMProvider,
-    CognitiveLevelEnum
 )
 
 target_metadata = Base.metadata

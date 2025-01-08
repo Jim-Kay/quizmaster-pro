@@ -10,6 +10,8 @@ Environment Setup:
        ```
     
     2. Required Environment Variables:
+       - TEST_MODE: Set to 'true' to run against test database
+       - PYTHONPATH: Set to backend directory (e.g., c:/ParseThat/QuizMasterPro/backend)
        - POSTGRES_USER: Database username
        - POSTGRES_PASSWORD: Database password
        - POSTGRES_HOST: Database host (default: localhost)
@@ -46,14 +48,12 @@ Execution:
     
     2. Run the test runner:
        ```bash
-       # First activate conda environment (if not already activated)
-       conda activate crewai-quizmaster-pro
+       # First activate conda environment and set required environment variables
+       cmd /c call conda activate crewai-quizmaster-pro && set TEST_MODE=true && set PYTHONPATH=/path/to/QuizMasterPro/backend && python tests/test_runner.py
        
-       # Then run tests in quick mode (levels 0-2)
-       python tests/test_runner.py --mode quick
-       
-       # Or run all tests (levels 0-4)
-       python tests/test_runner.py --mode full
+       # Optionally specify mode (default is quick):
+       cmd /c call conda activate crewai-quizmaster-pro && set TEST_MODE=true && set PYTHONPATH=/path/to/QuizMasterPro/backend && python tests/test_runner.py --mode quick
+       cmd /c call conda activate crewai-quizmaster-pro && set TEST_MODE=true && set PYTHONPATH=/path/to/QuizMasterPro/backend && python tests/test_runner.py --mode full
        ```
 
 Modes:
@@ -93,6 +93,7 @@ from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from sqlalchemy import text
 from sqlalchemy.pool import NullPool
+from dataclasses import dataclass, field
 
 # Load test environment variables
 env_file = Path(__file__).parent.parent / '.env.test'
@@ -112,26 +113,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@dataclass
 class TestMetadata:
     """Test file metadata"""
-    def __init__(self):
-        self.level: int = 0
-        self.dependencies: List[str] = []
-        self.blocking: bool = False
-        self.parallel_safe: bool = True
-        self.estimated_duration: int = 0
-        self.file_path: str = ""
-        self.working_directory: str = "project_root"
-        self.required_paths: List[str] = []
+    level: int = 0
+    dependencies: List[str] = field(default_factory=list)
+    blocking: bool = False
+    parallel_safe: bool = True
+    estimated_duration: int = 0
+    file_path: str = ""
+    working_directory: str = "project_root"
+    required_paths: List[str] = field(default_factory=list)
 
 class TestRunner:
     """Test runner class"""
-    def __init__(self, mode: str = 'quick'):
-        self.mode = mode
-        self.tests: Dict[str, TestMetadata] = {}
-        self.results: Dict[str, bool] = {}
-        self.start_times: Dict[str, float] = {}
-        self.project_root = Path.cwd()
+    mode: str = 'quick'
+    tests: Dict[str, TestMetadata] = {}
+    results: Dict[str, bool] = {}
+    start_times: Dict[str, float] = {}
+    project_root: Path = Path.cwd()
 
     def extract_metadata(self, file_path: str) -> Optional[TestMetadata]:
         """Extract metadata from test file docstring"""
@@ -581,38 +581,28 @@ async def main():
     parser.add_argument('--mode', choices=['quick', 'full', 'ci', 'pre-release'],
                       default='quick', help='Test execution mode')
     args = parser.parse_args()
-    
-    # First validate environment
+
+    # Validate environment
     if not validate_environment():
-        return 1
-        
-    # Then validate all test metadata
+        sys.exit(2)
+
+    # Validate test metadata
     logger.info("Validating test metadata...")
     if not validate_all_tests():
-        logger.error("Test metadata validation failed!")
-        return 1
-    
+        sys.exit(2)
+
     # Check required services
+    logger.info("Checking required services...")
     if not await check_services(args.mode):
-        return 1
-    
-    logger.info(f"Starting test run in {args.mode} mode")
-    
-    # Initialize test runner
-    runner = TestRunner(args.mode)
-    
-    # Discover and validate tests
-    runner.discover_tests()
-    if not runner.validate_dependencies():
-        return 1
-    
+        sys.exit(2)
+
     # Run tests
-    await runner.run_all()
+    logger.info(f"Starting test run in {args.mode} mode")
+    runner = TestRunner()
+    runner.mode = args.mode
+    success = await runner.run_all()
     
-    # Report results
-    runner.report_results()
-    
-    return 0 if all(runner.results.values()) else 1
+    sys.exit(0 if success else 1)
 
 def validate_environment() -> bool:
     """Validate that the test runner is being executed in the correct environment"""
@@ -648,6 +638,8 @@ def validate_environment() -> bool:
     
     # Check required environment variables
     required_vars = [
+        'TEST_MODE',
+        'PYTHONPATH',
         'POSTGRES_USER',
         'POSTGRES_PASSWORD',
         'POSTGRES_HOST',
