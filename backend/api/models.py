@@ -6,28 +6,28 @@ from sqlalchemy import (
     Enum as SQLAEnum, JSON, Integer, Index
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import relationship, DeclarativeBase
 from sqlalchemy.sql import func
 import uuid
 import enum
 from datetime import datetime
-from .database import Base
+from .core.database import Base
 
 class LLMProvider(str, Enum):
     """LLM provider enum"""
-    OPENAI = "OPENAI"
-    ANTHROPIC = "ANTHROPIC"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
 
     def __str__(self):
         return self.value
 
 class CognitiveLevelEnum(enum.Enum):
-    REMEMBER = "REMEMBER"
-    UNDERSTAND = "UNDERSTAND"
-    APPLY = "APPLY"
-    ANALYZE = "ANALYZE"
-    EVALUATE = "EVALUATE"
-    CREATE = "CREATE"
+    REMEMBER = "remember"
+    UNDERSTAND = "understand"
+    APPLY = "apply"
+    ANALYZE = "analyze"
+    EVALUATE = "evaluate"
+    CREATE = "create"
 
 class FlowExecutionStatus(enum.Enum):
     PENDING = "pending"

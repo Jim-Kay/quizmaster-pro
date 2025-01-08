@@ -2,42 +2,44 @@
 
 import logging
 from typing import AsyncGenerator
+import os
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy import create_engine
 
-from .config import get_settings
-from .base import Base
+# Create base class
+class Base(DeclarativeBase):
+    pass
 
-# Get settings
-settings = get_settings()
+def get_database_url(test_mode=False):
+    """Get database URL from environment variables"""
+    DB_USER = os.getenv("POSTGRES_USER", "test_user")
+    DB_PASS = os.getenv("POSTGRES_PASSWORD", "test_password")
+    DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
+    DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+    DB_NAME = "quizmaster_test" if test_mode else "quizmaster"
+    
+    return f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Construct database URLs
-DATABASE_URL = f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-SYNC_DATABASE_URL = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
-
-# Create engines
+# Create engine based on test mode
+DATABASE_URL = get_database_url(test_mode=os.getenv("TEST_MODE") == "true")
 engine = create_async_engine(DATABASE_URL, echo=True)
-sync_engine = create_engine(SYNC_DATABASE_URL, echo=True)
 
-# Create session factories
-async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+# Create session factory
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Dependency to get DB sessions
+async def get_db():
+    async with async_session() as session:
+        yield session
+
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     """Get database session for async operations"""
-    async with async_session_maker() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Get database session (alias for get_async_session for compatibility)"""
-    async for session in get_async_session():
+    async for session in get_db():
         yield session
 
 async def init_db():

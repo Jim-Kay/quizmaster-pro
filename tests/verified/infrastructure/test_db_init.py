@@ -42,20 +42,44 @@ import asyncio
 from uuid import UUID
 from sqlalchemy import select
 from datetime import datetime
-
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from api.core.database import Base, get_db
 from api.models import User, LLMProvider
-from api.core.database import get_test_db
 
 # Mock user constants - these should be used across all tests
 MOCK_USER_ID = UUID('f9b5645d-898b-4d58-b10a-a6b50a9d234b')
 MOCK_USER_EMAIL = 'test_mock_user@quizmasterpro.test'
 MOCK_USER_NAME = 'Mock Test User'
 
+@pytest.fixture(autouse=True)
+async def setup_test_database():
+    """Set up a fresh test database before each test"""
+    # Get database URL from environment variables
+    DB_USER = os.getenv("POSTGRES_USER", "test_user")
+    DB_PASS = os.getenv("POSTGRES_PASSWORD", "test_password")
+    DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
+    DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+    DB_NAME = "quizmaster_test"
+    
+    DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    
+    # Create engine
+    engine = create_async_engine(DATABASE_URL, echo=True)
+    
+    async with engine.begin() as conn:
+        # Drop all existing tables
+        await conn.run_sync(Base.metadata.drop_all)
+        # Create all tables
+        await conn.run_sync(Base.metadata.create_all)
+    
+    await engine.dispose()
+
 async def ensure_mock_user_exists():
     """Ensure our mock test user exists in the database"""
     logging.info("Checking for mock test user...")
     
-    async for db in get_test_db():
+    async for db in get_db():
         # Check if mock user exists
         query = select(User).where(User.user_id == MOCK_USER_ID)
         result = await db.execute(query)
