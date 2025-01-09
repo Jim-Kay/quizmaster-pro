@@ -11,8 +11,11 @@ from .metadata import TestMetadata, extract_metadata, validate_metadata
 logger = logging.getLogger(__name__)
 
 def normalize_path(path: str) -> str:
-    """Normalize path to use forward slashes"""
-    return str(Path(path)).replace('\\', '/')
+    """Normalize path to use forward slashes and lowercase drive letters"""
+    normalized = str(Path(path)).replace('\\', '/')
+    if len(normalized) > 1 and normalized[1] == ':':
+        return normalized[0].lower() + normalized[1:]
+    return normalized
 
 def discover_tests(project_root: Path) -> Dict[str, TestMetadata]:
     """Discover all test files and their metadata"""

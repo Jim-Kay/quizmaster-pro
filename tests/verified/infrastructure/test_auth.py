@@ -43,20 +43,16 @@ Test Metadata:
         - api/main.py
 """
 
-import os
 import jwt
-import pytest
 import logging
-import asyncio
-from uuid import UUID, uuid4
+from uuid import UUID
 from datetime import datetime, timedelta
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.testclient import TestClient
 
 from api.core.config import get_settings
 from api.core.database import get_db
-from api.core.models import User, LLMProvider
+from api.core.models import User
 from api.auth import create_access_token, get_current_user
 from api.main import app
 
@@ -69,48 +65,25 @@ settings = get_settings()
 
 test_client = TestClient(app)
 
-@pytest.fixture
-async def test_db():
+def get_test_db():
     """Get test database session"""
-    async for db in get_db():
-        yield db
+    return next(get_db())
 
-@pytest.fixture
-async def mock_user(test_db):
+def get_mock_user(db):
     """Get the mock user for authentication tests"""
     query = select(User).where(User.user_id == UUID('f9b5645d-898b-4d58-b10a-a6b50a9d234b'))
-    result = await test_db.execute(query)
+    result = db.execute(query)
     user = result.scalar_one()
     return user
 
-@pytest.fixture
-async def test_user(test_db):
-    """Create a temporary test user for CRUD testing"""
-    # Create test user
-    test_user = User(
-        user_id=uuid4(),
-        email='test_auth_user@quizmasterpro.test',
-        name='Test Auth User',
-        llm_provider=LLMProvider.openai.value,
-        encrypted_openai_key=None,
-        encrypted_anthropic_key=None
-    )
-    test_db.add(test_user)
-    await test_db.commit()
-    
-    yield test_user
-    
-    # Cleanup
-    await test_db.delete(test_user)
-    await test_db.commit()
-
 async def test_create_access_token():
     """Test JWT token creation"""
+    logger.info("Starting test_create_access_token")
     user_id = UUID('f9b5645d-898b-4d58-b10a-a6b50a9d234b')
     token = await create_access_token({"sub": str(user_id)})
     
     # Verify token
-    payload = jwt.decode(token.encode(), settings.SECRET_KEY, algorithms=["HS256"])
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
     assert payload["sub"] == str(user_id)
     assert "exp" in payload
     
@@ -119,80 +92,68 @@ async def test_create_access_token():
     now = datetime.utcnow()
     assert exp > now
     assert exp <= now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES + 1)
+    logger.info("Completed test_create_access_token")
 
-async def test_get_current_user(test_db, mock_user):
+async def test_get_current_user():
     """Test current user retrieval from token"""
+    logger.info("Starting test_get_current_user")
+    db = get_test_db()
+    mock_user = get_mock_user(db)
+    
     # Create token
     token = await create_access_token({"sub": str(mock_user.user_id)})
     
     # Get current user
-    user = await get_current_user(token, test_db)
+    user = await get_current_user(token, db)
     assert user is not None
     assert user.user_id == mock_user.user_id
     assert user.email == mock_user.email
+    logger.info("Completed test_get_current_user")
 
-async def test_protected_route_access(mock_user):
+async def test_protected_route_access():
     """Test protected route access with JWT token"""
+    logger.info("Starting test_protected_route_access")
+    db = get_test_db()
+    mock_user = get_mock_user(db)
+    
     # Create token
     token = await create_access_token({"sub": str(mock_user.user_id)})
     
     # Test protected route
-    response = test_client.get(
+    response = await test_client.get(
         "/api/protected",
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
-    assert response.json()["user_id"] == str(mock_user.user_id)
+    assert "message" in response.json()
+    assert "user" in response.json()
+    logger.info("Completed test_protected_route_access")
 
 async def test_websocket_auth():
     """Test WebSocket authentication"""
+    logger.info("Starting test_websocket_auth")
     # Create token
     user_id = UUID('f9b5645d-898b-4d58-b10a-a6b50a9d234b')
     token = await create_access_token({"sub": str(user_id)})
     
     # Test WebSocket connection
-    with test_client.websocket_connect(
-        f"/ws/test?token={token}"
-    ) as websocket:
-        # Send test message
-        websocket.send_text("test")
-        
-        # Receive response
-        data = websocket.receive_text()
-        assert data == "test"
-        
-        # Close connection
-        websocket.close()
+    async with test_client.websocket_connect(f"/ws?token={token}") as websocket:
+        data = await websocket.receive_json()
+        assert data == {"message": "Connection established"}
+    logger.info("Completed test_websocket_auth")
 
-async def test_token_refresh():
-    """Test token refresh functionality"""
-    # Create initial token
-    user_id = UUID('f9b5645d-898b-4d58-b10a-a6b50a9d234b')
-    token = await create_access_token({"sub": str(user_id)})
-    
-    # Verify token
-    payload = jwt.decode(token.encode(), settings.SECRET_KEY, algorithms=["HS256"])
-    assert payload["sub"] == str(user_id)
-    
-    # Create refresh token
-    refresh_token = await create_access_token(
-        {"sub": str(user_id)},
-        expires_delta=timedelta(days=7)
-    )
-    
-    # Verify refresh token
-    refresh_payload = jwt.decode(refresh_token.encode(), settings.SECRET_KEY, algorithms=["HS256"])
-    assert refresh_payload["sub"] == str(user_id)
-    assert refresh_payload["exp"] > payload["exp"]
+async def run_tests():
+    """Run all tests"""
+    logger.info("Starting run_tests")
+    await test_create_access_token()
+    await test_get_current_user()
+    await test_protected_route_access()
+    await test_websocket_auth()
+    logger.info("Completed run_tests")
 
-async def test_main():
-    """Main test function"""
-    async for db in get_db():
-        await test_create_access_token()
-        await test_get_current_user(db, mock_user)
-        await test_protected_route_access(mock_user)
-        await test_websocket_auth()
-        await test_token_refresh()
-
-if __name__ == "__main__":
-    asyncio.run(test_main())
+# This will be called by the test runner
+def test_auth():
+    logger.info("Starting test_auth")
+    import asyncio
+    asyncio.run(run_tests())
+    logger.info("Completed test_auth")

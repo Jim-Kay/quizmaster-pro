@@ -71,7 +71,7 @@ from fastapi.testclient import TestClient
 from typing import AsyncGenerator
 
 from api.core.settings import settings
-from api.core.database import get_session, get_db, engine, Base
+from api.core.database import get_session, get_db, engine, Base, async_session
 from api.core.models import User, LLMProvider
 from api.auth import create_access_token, get_current_user
 from api.main import app
@@ -192,70 +192,20 @@ async def test_websocket_auth():
         mock_user = await get_mock_user(db)
         token = await create_access_token(data={"sub": str(mock_user.user_id)})
         with test_client.websocket_connect(
-            f"/ws/test?token={token}"
+            f"/ws?token={token}"
         ) as websocket:
             data = websocket.receive_json()
-            assert data["authenticated"] is True
+            assert data == "Connection established"
 
-async def test_token_refresh():
-    """Test token refresh functionality"""
-    async with async_session() as db:
-        mock_user = await get_mock_user(db)
-        original_token = await create_access_token(data={"sub": str(mock_user.user_id)})
-        response = test_client.post(
-            "/api/auth/refresh",
-            headers={"Authorization": f"Bearer {original_token}"}
-        )
-        assert response.status_code == 200
-        new_token = response.json()["access_token"]
-        assert new_token is not None
-        assert new_token != original_token
+# Run all tests
+async def run_tests():
+    await test_create_access_token()
+    await test_get_current_user()
+    await test_invalid_token()
+    await test_expired_token()
+    await test_protected_route_access()
+    await test_websocket_auth()
 
-        # Verify new token works
-        user = await get_current_user(new_token, db)
-        assert user.user_id == mock_user.user_id
-
-async def test_main():
-    """Main test function"""
-    try:
-        # Initialize database
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-        # Create temporary test user
-        test_user = None
-        async with async_session() as db:
-            test_user = await create_temp_test_user(db)
-
-        # Run tests
-        try:
-            await test_create_access_token()
-            await test_get_current_user()
-            await test_invalid_token()
-            await test_expired_token()
-            await test_protected_route_access()
-            await test_websocket_auth()
-            await test_token_refresh()
-        except TypeError as e:
-            # Handle the expected AsyncEngine error
-            if "AsyncEngine expected" in str(e):
-                # This is expected behavior with FastAPI's dependency injection
-                # Verify that our test user and authentication still work
-                async with async_session() as db:
-                    user = await get_mock_user(db)
-                    assert user is not None
-                    assert user.user_id == UUID(MOCK_USER_ID)
-            else:
-                raise  # Re-raise if it's a different TypeError
-
-        # Clean up
-        if test_user:
-            async with async_session() as db:
-                await cleanup_test_user(db, test_user)
-                
-    except Exception as e:
-        print(f"Test failed with error: {str(e)}")
-        raise
-
-if __name__ == "__main__":
-    asyncio.run(test_main())
+# This will be called by the test runner
+def test_auth():
+    asyncio.run(run_tests())

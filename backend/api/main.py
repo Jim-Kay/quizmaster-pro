@@ -50,6 +50,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
             return
 
         await websocket.accept()
+        await websocket.send_json({"message": "Connection established"})
         
         try:
             while True:
@@ -77,3 +78,8 @@ async def startup_event():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
+
+@app.get("/api/protected")
+async def protected_route(current_user: dict = Depends(verify_token)):
+    """Protected route for testing authentication"""
+    return {"message": "You have access to the protected route", "user": current_user}
