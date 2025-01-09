@@ -38,13 +38,23 @@ async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Dependency to get DB sessions
-async def get_db():
+# Database session dependency
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Get database session"""
     async with async_session() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            await session.close()
 
+# For testing and internal use where we need a session directly
+def get_session() -> AsyncSession:
+    """Get database session directly without async generator"""
+    return async_session()
+
+# This is deprecated, use get_db instead
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    """Get database session for async operations"""
+    """Get database session for async operations (deprecated)"""
     async for session in get_db():
         yield session
 
@@ -54,4 +64,4 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
 # Export functions and classes
-__all__ = ["get_async_session", "get_db", "init_db", "Base"]
+__all__ = ["get_db", "get_async_session", "init_db", "get_session", "Base"]

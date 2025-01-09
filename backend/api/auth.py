@@ -12,12 +12,9 @@ from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from .core.config import get_settings
-from .core.database import get_db
+from .core.settings import settings
+from .core.database import get_db, get_session
 from api.core.models import User
-
-# Get settings
-settings = get_settings()
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -39,25 +36,28 @@ async def create_access_token(data: dict, expires_delta: Optional[timedelta] = N
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 async def verify_token(token: str) -> Optional[User]:
     """Verify a JWT token and return the user"""
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id = payload.get("sub")
         if user_id is None:
             return None
         
-        # Get user from database
-        async with AsyncSession(get_db()) as session:
+        # Get user from database using session directly
+        session = get_session()
+        try:
             result = await session.execute(select(User).where(User.user_id == user_id))
             user = result.scalar_one_or_none()
             return user
+        finally:
+            await session.close()
     except jwt.JWTError:
         return None
 

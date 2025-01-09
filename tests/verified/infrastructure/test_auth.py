@@ -48,7 +48,7 @@ import jwt
 import pytest
 import logging
 import asyncio
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,10 +88,10 @@ async def test_user(test_db):
     """Create a temporary test user for CRUD testing"""
     # Create test user
     test_user = User(
-        user_id=UUID('a1b2c3d4-e5f6-4321-8765-9abcdef01234'),
+        user_id=uuid4(),
         email='test_auth_user@quizmasterpro.test',
         name='Test Auth User',
-        llm_provider=LLMProvider.OPENAI.value,
+        llm_provider=LLMProvider.openai.value,
         encrypted_openai_key=None,
         encrypted_anthropic_key=None
     )

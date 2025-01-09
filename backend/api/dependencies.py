@@ -4,12 +4,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth import get_current_user
-from api.core.database import async_session_maker
+from api.core.database import get_db
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Get a database session."""
-    async with async_session_maker() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+# Re-export get_db for convenience
+__all__ = ["get_db"]
