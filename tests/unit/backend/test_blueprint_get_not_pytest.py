@@ -50,7 +50,7 @@ import requests
 import socket
 
 from api.database import async_session_maker, Base, engine
-from api.models import Topic, Blueprint, TerminalObjective, EnablingObjective, User
+from api.core.models import Topic, Blueprint, TerminalObjective, EnablingObjective, User
 
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))

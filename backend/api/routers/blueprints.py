@@ -8,8 +8,8 @@ import logging
 from pydantic import BaseModel, UUID4
 from datetime import datetime
 
-from ..database import get_db
-from ..models import Topic, Blueprint, TerminalObjective, EnablingObjective
+from ..core.database import get_db
+from ..core.models import Topic, Blueprint, TerminalObjective, EnablingObjective
 from ..auth import get_current_user
 
 # Set up logging

@@ -4,8 +4,8 @@ from sqlalchemy import select, update
 from typing import Optional
 from pydantic import UUID4
 
-from ..database import get_db
-from ..models import User, LLMProvider
+from ..core.database import get_db
+from ..core.models import User, LLMProvider
 from ..auth import get_current_user
 from ..utils.encryption import encrypt_api_key, decrypt_api_key
 from ..schemas.user_settings import UserSettingsUpdate, UserSettingsResponse

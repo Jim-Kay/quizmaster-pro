@@ -84,8 +84,8 @@ async def test_create_topic(test_session, test_user, client):
     assert topic["title"] == "New Topic"
     assert topic["description"] == "New Description"
     assert "id" in topic  # ID should be auto-generated
-    assert "created_by" in topic  # Should match our mock user ID
-    assert topic["created_by"] == str(MOCK_USER_ID)
+    assert "user_id" in topic  # Should match our mock user ID
+    assert topic["user_id"] == str(MOCK_USER_ID)
 
 async def test_update_topic(test_session, test_user, client):
     """Test updating a topic."""
@@ -116,7 +116,7 @@ async def test_update_topic(test_session, test_user, client):
     assert updated_topic["id"] == topic_id
     assert updated_topic["title"] == "Updated Topic"
     assert updated_topic["description"] == "Updated Description"
-    assert updated_topic["created_by"] == str(MOCK_USER_ID)
+    assert updated_topic["user_id"] == str(MOCK_USER_ID)
 
 async def test_delete_topic(test_session, test_user, client):
     """Test deleting a topic."""

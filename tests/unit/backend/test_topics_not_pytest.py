@@ -43,7 +43,7 @@ JWT_SECRET = os.getenv("NEXTAUTH_SECRET", "development-secret")
 
 # Import database models and session
 from api.database import get_db, Base, engine, async_session_maker, sync_engine
-from api.models import Topic, Blueprint, EnablingObjective, TerminalObjective
+from api.core.models import Topic, Blueprint, EnablingObjective, TerminalObjective
 from sqlalchemy.future import select
 from sqlalchemy import delete
 

@@ -16,7 +16,7 @@ import asyncpg
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from api.main import app
-from api.models import Base, User
+from api.core.models import Base, User
 
 # Load environment variables from .env file
 load_dotenv()

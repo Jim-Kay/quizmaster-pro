@@ -10,9 +10,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from ..models import User, Topic, Blueprint, TerminalObjective, EnablingObjective
+from ..core.models import User, Topic, Blueprint, TerminalObjective, EnablingObjective
 from ..auth import get_current_user
-from ..database import get_db
+from ..core.database import get_db
 from ..schemas.pydantic_schemas import BlueprintPydantic, BlueprintStatusResponse
 from ..crews.blueprint_crew.blueprint_crew import BlueprintCrew
 
@@ -173,8 +173,8 @@ def generate_blueprint_background(
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.ext.asyncio import create_async_engine
     from sqlalchemy.ext.asyncio import async_sessionmaker
-    from ..database import DATABASE_URL
-    from ..models import Base, Blueprint, TerminalObjective, EnablingObjective
+    from ..core.database import DATABASE_URL
+    from ..core.models import Base, Blueprint, TerminalObjective, EnablingObjective
 
     # Create async engine and session
     async_engine = create_async_engine(str(DATABASE_URL))

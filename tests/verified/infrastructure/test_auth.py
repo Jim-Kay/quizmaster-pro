@@ -38,7 +38,7 @@ Test Metadata:
     Working_Directory: backend
     Required_Paths:
         - api/core/database.py
-        - api/models.py
+        - api/core/models.py
         - api/auth.py
         - api/main.py
 """
@@ -56,7 +56,7 @@ from fastapi.testclient import TestClient
 
 from api.core.config import get_settings
 from api.core.database import get_db
-from api.models import User, LLMProvider
+from api.core.models import User, LLMProvider
 from api.auth import create_access_token, get_current_user
 from api.main import app
 

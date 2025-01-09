@@ -14,7 +14,7 @@ from sqlalchemy.future import select
 
 from .core.config import get_settings
 from .core.database import get_db
-from .core.models import User
+from api.core.models import User
 
 # Get settings
 settings = get_settings()

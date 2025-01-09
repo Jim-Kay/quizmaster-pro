@@ -5,12 +5,18 @@ from typing import AsyncGenerator
 import os
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 
-# Create base class
-class Base(DeclarativeBase):
-    pass
+# Import all models
+from .models import (
+    User, LLMProvider, Topic, Blueprint, TerminalObjective,
+    EnablingObjective, FlowExecution, IdempotencyKey, FlowLog,
+    FlowExecutionStatus, CognitiveLevelEnum, LogLevel
+)
+
+# Import Base from base.py
+from .base import Base
 
 def get_database_url(test_mode=False):
     """Get database URL from environment variables"""
