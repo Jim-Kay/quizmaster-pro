@@ -52,6 +52,13 @@ def get_session() -> AsyncSession:
     """Get database session directly without async generator"""
     return async_session()
 
+async def test_engine() -> AsyncGenerator:
+    """Get test database engine"""
+    test_url = get_database_url(test_mode=True)
+    test_engine = create_async_engine(test_url, echo=True)
+    yield test_engine
+    await test_engine.dispose()
+
 # This is deprecated, use get_db instead
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     """Get database session for async operations (deprecated)"""
@@ -64,4 +71,4 @@ async def init_db():
         await conn.run_sync(Base.metadata.create_all)
 
 # Export functions and classes
-__all__ = ["get_db", "get_async_session", "init_db", "get_session", "Base"]
+__all__ = ["get_db", "get_async_session", "init_db", "get_session", "Base", "test_engine"]

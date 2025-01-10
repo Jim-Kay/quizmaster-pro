@@ -13,10 +13,29 @@ Test Metadata:
         - api/main.py
         - api/routers
         - api/core/config.py
+
+Environment:
+    - Conda Environment: crewai-quizmaster-pro
+    - Required Services: None
+
+Setup:
+    1. Ensure backend server is running
+    2. Environment variables are set
+
+Execution:
+    pytest tests/verified/infrastructure/test_backend_health.py -v
+
+Expected Results:
+    - Server responds with 200 status code
+    - Health check returns {"status": "healthy"}
+
+Notes:
+    This test is part of Level 0 infrastructure tests and must pass
+    before proceeding with higher-level tests.
 """
 
 import os
-import asyncio
+import pytest
 import logging
 import httpx
 from dotenv import load_dotenv
@@ -24,42 +43,26 @@ from dotenv import load_dotenv
 # Import from backend package
 from api.core.config import get_settings
 
-# Load environment variables
-load_dotenv()
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Get settings
+# Load environment variables and settings
+load_dotenv()
 settings = get_settings()
 
 # Server configuration
 API_BASE_URL = f"http://{settings.API_HOST}:{settings.API_PORT}"
 
-async def test_server_running():
+@pytest.mark.asyncio
+async def test_server_health():
     """Test if the server is running and responding"""
     logger.info("Testing backend server health...")
     
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{API_BASE_URL}/api/health")
-            assert response.status_code == 200
-            
-            health_data = response.json()
-            assert health_data["status"] == "healthy"
-            
-            logger.info("Backend server health check successful")
-            return True
-            
-    except Exception as e:
-        logger.error(f"Backend server health check failed: {e}")
-        return False
-
-async def test_main():
-    """Main test function"""
-    success = await test_server_running()
-    assert success, "Backend server health check failed"
-
-if __name__ == "__main__":
-    asyncio.run(test_main())
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{API_BASE_URL}/api/health")
+        assert response.status_code == 200
+        
+        health_data = response.json()
+        assert health_data["status"] == "healthy"
+        logger.info("Backend server health check passed")
