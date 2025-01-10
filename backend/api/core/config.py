@@ -6,6 +6,7 @@ from typing import Optional
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -42,12 +43,12 @@ class Settings(BaseSettings):
     # Python settings
     PYTHONIOENCODING: Optional[str] = None
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        env_file_encoding = 'utf-8'
-        # Allow extra fields from environment variables
-        extra = "allow"
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        env_file_encoding='utf-8',
+        extra="allow"
+    )
 
 @lru_cache()
 def get_settings() -> Settings:

@@ -295,9 +295,7 @@ class FlowExecutionResponse(FlowExecutionBase):
     updated_at: datetime = Field(..., description="When the flow execution was last updated")
     logs: List["FlowLogResponse"] = Field(default_factory=list, description="List of logs for this flow execution")
 
-    class Config:
-        """Pydantic config"""
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class FlowLogBase(BaseModel):
     """Base schema for flow log"""
@@ -314,9 +312,7 @@ class FlowLogResponse(FlowLogBase):
     flow_execution_id: int = Field(..., description="ID of the flow execution this log belongs to")
     created_at: datetime = Field(..., description="When the log was created")
 
-    class Config:
-        """Pydantic config"""
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class TopicBase(BaseModel):
     """Base schema for topic"""
@@ -339,6 +335,4 @@ class TopicResponse(TopicBase):
     created_at: datetime = Field(..., description="When the topic was created")
     updated_at: datetime = Field(..., description="When the topic was last updated")
 
-    class Config:
-        """Pydantic config"""
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

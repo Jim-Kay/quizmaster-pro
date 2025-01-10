@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from enum import Enum
 
@@ -16,5 +16,4 @@ class UserSettingsResponse(BaseModel):
     has_openai_key: bool
     has_anthropic_key: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

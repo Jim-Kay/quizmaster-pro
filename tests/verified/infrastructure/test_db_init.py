@@ -56,7 +56,7 @@ Mock User vs Test User:
 
 import os
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import select, text
 import logging
 import sys
@@ -95,11 +95,60 @@ async def test_engine():
     
     DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     
-    engine = create_async_engine(DATABASE_URL, echo=True)
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=True,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        pool_size=5,
+        max_overflow=10
+    )
     try:
         yield engine
     finally:
+        logger.debug("Disposing engine connections")
         await engine.dispose()
+        logger.debug("Engine connections disposed")
+
+@pytest.fixture(scope="session")
+async def async_session_maker(test_engine):
+    """Create a session maker for async sessions."""
+    engine = await anext(test_engine)
+    async_session = async_sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False
+    )
+    try:
+        yield async_session
+    finally:
+        await engine.dispose()
+
+@pytest.fixture(scope="function")
+async def test_session(async_session_maker) -> AsyncGenerator[AsyncSession, None]:
+    """Create a fresh session for each test."""
+    logger.debug("Creating test session")
+    
+    session_maker = await anext(async_session_maker)
+    async with session_maker() as session:
+        logger.debug("Created AsyncSession object")
+        async with session.begin():
+            logger.debug("Session transaction begun")
+            try:
+                logger.debug("Yielding session to test")
+                yield session
+                logger.debug("Test completed, committing session")
+                await session.commit()
+            except Exception as e:
+                logger.error(f"Error in test_session fixture: {str(e)}")
+                logger.debug("Rolling back session due to error")
+                await session.rollback()
+                raise
+            finally:
+                logger.debug("Ensuring session is closed")
+                await session.close()
+                logger.debug("Session cleanup completed")
 
 @pytest.fixture(scope="session")
 async def init_db(test_engine):
@@ -119,35 +168,6 @@ async def init_db(test_engine):
         await conn.run_sync(Base.metadata.create_all)
     
     yield engine
-
-@pytest.fixture(scope="function")
-async def test_session(init_db) -> AsyncGenerator[AsyncSession, None]:
-    """Create a fresh session for each test."""
-    logger.debug("Creating test session")
-    
-    engine = await anext(init_db)
-    session = AsyncSession(engine)
-    logger.debug("Created AsyncSession object")
-    
-    await session.begin()
-    logger.debug("Session transaction begun")
-    
-    try:
-        logger.debug("Yielding session to test")
-        yield session
-        logger.debug("Test completed, cleaning up session")
-    except Exception as e:
-        logger.error(f"Error in test_session fixture: {str(e)}")
-        raise
-    finally:
-        try:
-            logger.debug("Rolling back session")
-            await session.rollback()
-            logger.debug("Closing session")
-            await session.close()
-            logger.debug("Session cleanup completed")
-        except Exception as e:
-            logger.error(f"Error during session cleanup: {str(e)}")
 
 @pytest.mark.asyncio
 async def test_ensure_mock_user_exists(test_session):
@@ -176,7 +196,7 @@ async def test_ensure_mock_user_exists(test_session):
                 llm_provider=LLMProvider.OPENAI
             )
             session.add(user)
-            await session.commit()
+            # Note: We don't need to commit here as the session fixture will handle it
             logger.debug("Created new mock user")
         else:
             logger.debug("Mock user already exists")

@@ -2,6 +2,7 @@
 
 import os
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 
 class Settings(BaseSettings):
     """Application settings."""
@@ -31,12 +32,12 @@ class Settings(BaseSettings):
     # API Keys
     SERPER_API_KEY: str = os.getenv("SERPER_API_KEY", "")
 
-    class Config:
-        """Pydantic config."""
-        env_file = ".env"
-        case_sensitive = True
-        env_file_encoding = 'utf-8'
-        extra = "allow"
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        env_file_encoding='utf-8',
+        extra="allow"
+    )
 
 # Create settings instance
 settings = Settings()

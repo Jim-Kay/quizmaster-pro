@@ -252,7 +252,7 @@ class TopicUpdate(BaseModel):
 
 class AssessmentBlueprintCreate(BaseModel):
     topic_id: UUID4
-    terminal_objectives: List[UUID4] = Field(..., min_items=1, max_items=10)
+    terminal_objectives: List[UUID4] = Field(..., min_length=1, max_length=10)
     enabling_objectives_per_terminal: int = Field(..., ge=5, le=8)
 
 class AssessmentSessionCreate(BaseModel):
