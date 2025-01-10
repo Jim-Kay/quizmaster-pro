@@ -76,6 +76,7 @@ Exit Codes:
 import os
 import sys
 import logging
+import importlib.util
 import asyncio
 import argparse
 import subprocess
@@ -90,6 +91,11 @@ from sqlalchemy.pool import NullPool
 from utils.metadata import TestMetadata
 from utils.discovery import discover_tests, validate_dependencies, detect_cycles, group_tests_by_level
 from utils.execution import TestExecutor
+
+# Debug logging
+logger = logging.getLogger(__name__)
+logger.info("TestExecutor imported successfully")
+logger.info(f"TestExecutor attributes: {dir(TestExecutor)}")
 
 # Load test environment variables
 env_file = Path(__file__).parent.parent / '.env.test'
@@ -173,78 +179,80 @@ def validate_environment() -> bool:
         logger.error(f"Environment validation failed: {e}")
         return False
 
-async def main():
-    """Main entry point"""
-    parser = argparse.ArgumentParser(description='QuizMasterPro Test Runner')
-    parser.add_argument('--mode', choices=['quick', 'full', 'ci', 'pre-release'],
-                      default='quick', help='Test execution mode')
-    args = parser.parse_args()
+def discover_tests(test_dir):
+    """Discover all test files in the test directory."""
+    test_files = []
+    for root, _, files in os.walk(test_dir):
+        for file in files:
+            if file.startswith('test_') and file.endswith('.py'):
+                test_files.append(os.path.join(root, file))
+    return sorted(test_files)
 
-    # Validate environment
+def get_test_level(test_file):
+    """Determine test level based on directory structure."""
+    if 'infrastructure' in test_file:
+        return 0
+    return 1
+
+async def run_test_file(test_file: Path) -> bool:
+    """Run a single test file and return True if all tests pass."""
+    try:
+        # Import the test module
+        spec = importlib.util.spec_from_file_location(test_file.stem, test_file)
+        if not spec or not spec.loader:
+            logger.error(f"Could not load spec for {test_file}")
+            return False
+            
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        
+        # Get all test functions from the module
+        test_functions = [
+            attr for attr in dir(module) 
+            if attr.startswith('test_') and callable(getattr(module, attr))
+        ]
+        
+        # Run each test function
+        for test_name in test_functions:
+            test_func = getattr(module, test_name)
+            if asyncio.iscoroutinefunction(test_func):
+                await test_func()
+            else:
+                test_func()
+                
+        return True
+        
+    except Exception as e:
+        logger.error(f"Test execution failed: {str(e)}")
+        return False
+
+async def main():
+    """Main test runner function."""
+    parser = argparse.ArgumentParser(description='QuizMasterPro Test Runner')
+    parser.add_argument('--mode', choices=['quick', 'full', 'ci', 'pre-release'], 
+                       default='quick', help='Test execution mode')
+    args = parser.parse_args()
+    
+    # Validate environment and services
     if not validate_environment():
         sys.exit(2)
-
-    # Check required services
     if not await check_services(args.mode):
         sys.exit(2)
-
-    try:
-        # Initialize test executor
-        project_root = Path.cwd()
-        executor = TestExecutor(project_root)
-
-        # Discover and validate tests
-        tests = discover_tests(project_root)
-        if not validate_dependencies(tests):
-            sys.exit(2)
-
-        # Check for dependency cycles
-        cycles = detect_cycles(tests)
-        if cycles:
-            logger.error("Dependency cycles detected:")
-            for cycle in cycles:
-                logger.error(f"  {' -> '.join(cycle)}")
-            sys.exit(2)
-
-        # Group tests by level
-        levels = group_tests_by_level(tests)
-        max_level = 2 if args.mode == 'quick' else 4
-
-        # Run tests by level
-        for level in sorted(levels.keys()):
-            if level > max_level:
-                logger.info(f"Skipping tests at level {level} in {args.mode} mode")
-                continue
-
-            logger.info(f"\nRunning Level {level} tests...")
-            level_tests = levels[level]
-
-            # Run blocking tests first
-            blocking_tests = [t for t in level_tests if tests[t].blocking]
-            for test in blocking_tests:
-                result = await executor.run_test(test, tests[test])
-                executor.results[test] = result
-                if not result.success:
-                    logger.error(f"Blocking test {test} failed, stopping execution")
-                    print(executor.get_results_summary())
-                    sys.exit(1)
-
-            # Run remaining tests in parallel
-            parallel_tests = [t for t in level_tests if not tests[t].blocking]
-            if parallel_tests:
-                await executor.run_parallel_tests(parallel_tests, tests)
-
-        # Print results summary
-        print(executor.get_results_summary())
-
-        # Exit with status code based on results
-        if any(not result.success for result in executor.results.values()):
-            sys.exit(1)
-        sys.exit(0)
-
-    except Exception as e:
-        logger.error(f"Test execution failed: {e}")
+        
+    # Discover and organize tests
+    test_dir = Path(__file__).parent
+    test_files = discover_tests(test_dir)
+    
+    # Run tests
+    failed = False
+    for test_file in test_files:
+        logger.info(f"Running tests in {test_file}")
+        if not await run_test_file(Path(test_file)):
+            failed = True
+            
+    if failed:
         sys.exit(1)
+    sys.exit(0)
 
 if __name__ == "__main__":
     asyncio.run(main())

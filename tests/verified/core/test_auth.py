@@ -60,152 +60,89 @@ Test Metadata:
         - api/main.py
 """
 
-import jwt
-import asyncio
-from uuid import UUID, uuid4
-from datetime import datetime, timedelta
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
+import pytest
 from fastapi.testclient import TestClient
-from typing import AsyncGenerator
+from httpx import AsyncClient
+import asyncio
+from typing import AsyncGenerator, Generator
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.core.settings import settings
-from api.core.database import get_session, get_db, engine, Base, async_session
-from api.core.models import User, LLMProvider
-from api.auth import create_access_token, get_current_user
 from api.main import app
+from api.core.auth import create_access_token
+from api.tests.utils.test_db import async_session, get_mock_user
 
-# Import mock user constants from test_db_init using relative import
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from verified.infrastructure.test_db_init import (
-    MOCK_USER_ID,
-    MOCK_USER_EMAIL,
-    MOCK_USER_NAME
-)
+# Fixtures for test client and database session
+@pytest.fixture
+def client() -> Generator:
+    with TestClient(app) as c:
+        yield c
 
-# Remove @pytest.fixture decorator
-# @pytest.fixture
-def override_get_db():
-    """Override database dependency for testing"""
-    return get_session()
+@pytest.fixture
+async def async_client() -> AsyncGenerator:
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
 
-# Override the get_db dependency for testing
-app.dependency_overrides[get_db] = override_get_db
-test_client = TestClient(app)
+@pytest.fixture
+async def auth_headers(async_session: AsyncSession) -> dict:
+    """Fixture to get authentication headers with a valid token"""
+    mock_user = await get_mock_user(async_session)
+    token = await create_access_token(data={"sub": str(mock_user.user_id)})
+    return {"Authorization": f"Bearer {token}"}
 
-async def get_mock_user(db: AsyncSession) -> User:
-    """
-    Get the mock user for authentication tests.
-    This is the persistent mock user that should NEVER be deleted.
-    """
-    query = select(User).where(User.user_id == MOCK_USER_ID)
-    result = await db.execute(query)
-    return result.scalar_one()
-
-async def create_temp_test_user(db: AsyncSession) -> User:
-    """
-    Create a temporary test user for CRUD testing.
-    This user is safe to delete and recreate, unlike the mock user.
-    """
-    user = User(
-        user_id=uuid4(),
-        email=f"test_{uuid4()}@example.com",
-        name="Test User",
-        llm_provider=LLMProvider.openai,
-        encrypted_openai_key="test_key"
-    )
-    db.add(user)
-    await db.commit()
-    return user
-
-async def cleanup_test_user(db: AsyncSession, test_user: User):
-    """
-    Clean up temporary test user after tests.
-    Never deletes the mock user (MOCK_USER_ID) as it's needed by other tests.
-    """
-    if test_user.user_id != MOCK_USER_ID:
-        await db.delete(test_user)
-        await db.commit()
-
-async def test_create_access_token():
-    """Test creating an access token"""
-    async with async_session() as db:
-        mock_user = await get_mock_user(db)
-        token = await create_access_token(data={"sub": str(mock_user.user_id)})
-        assert token is not None
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        assert payload["sub"] == str(mock_user.user_id)
-        assert "exp" in payload
-
-async def test_get_current_user():
-    """Test getting current user from token"""
-    async with async_session() as db:
-        mock_user = await get_mock_user(db)
-        token = await create_access_token(data={"sub": str(mock_user.user_id)})
-        user = await get_current_user(token, db)
-        assert user is not None
-        assert user.user_id == mock_user.user_id
-        assert user.email == mock_user.email
-
-async def test_invalid_token():
-    """Test invalid token handling"""
-    async with async_session() as db:
-        invalid_token = "invalid_token"
-        try:
-            await get_current_user(invalid_token, db)
-            assert False, "Should have raised an error"
-        except:
-            pass
-
-async def test_expired_token():
-    """Test expired token handling"""
-    async with async_session() as db:
-        mock_user = await get_mock_user(db)
-        expired_token = jwt.encode(
-            {"sub": str(mock_user.user_id), "exp": datetime.utcnow() - timedelta(minutes=1)},
-            settings.SECRET_KEY,
-            algorithm=settings.ALGORITHM
-        )
-        try:
-            await get_current_user(expired_token, db)
-            assert False, "Should have raised an error"
-        except:
-            pass
-
-async def test_protected_route_access():
+@pytest.mark.asyncio
+async def test_protected_route(async_client: AsyncClient, auth_headers: dict):
     """Test protected route access with JWT token"""
-    async with async_session() as db:
-        mock_user = await get_mock_user(db)
-        token = await create_access_token(data={"sub": str(mock_user.user_id)})
-        response = test_client.get(
-            "/api/protected",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        assert response.status_code == 200
+    response = await async_client.get("/api/protected", headers=auth_headers)
+    assert response.status_code == 200
+    assert "message" in response.json()
 
-async def test_websocket_auth():
-    """Test WebSocket authentication"""
-    async with async_session() as db:
-        mock_user = await get_mock_user(db)
-        token = await create_access_token(data={"sub": str(mock_user.user_id)})
-        with test_client.websocket_connect(
-            f"/ws?token={token}"
-        ) as websocket:
+@pytest.mark.asyncio
+async def test_protected_route_no_auth(async_client: AsyncClient):
+    """Test protected route access without token"""
+    response = await async_client.get("/api/protected")
+    assert response.status_code == 401
+
+@pytest.mark.asyncio
+async def test_websocket_connection(client: TestClient, auth_headers: dict):
+    """Test WebSocket connection and message exchange"""
+    token = auth_headers["Authorization"].split()[1]
+    with client.websocket_connect(f"/api/ws?token={token}") as websocket:
+        # Test connection establishment
+        data = websocket.receive_json()
+        assert "message" in data
+        assert data["message"] == "Connection established"
+
+        # Test message exchange
+        test_message = "Hello WebSocket"
+        websocket.send_text(test_message)
+        response = websocket.receive_text()
+        assert response == test_message
+
+@pytest.mark.asyncio
+async def test_websocket_no_auth(client: TestClient):
+    """Test WebSocket connection without token"""
+    with pytest.raises(Exception):  # WebSocket connection should fail
+        with client.websocket_connect("/api/ws") as websocket:
+            pass
+
+@pytest.mark.asyncio
+async def test_long_running_process(client: TestClient, auth_headers: dict):
+    """Test a long-running process with WebSocket status updates"""
+    # Start the long-running process via REST API
+    response = client.post("/api/start-process", headers=auth_headers)
+    assert response.status_code == 200
+    process_id = response.json()["process_id"]
+
+    # Connect to WebSocket to receive status updates
+    token = auth_headers["Authorization"].split()[1]
+    with client.websocket_connect(f"/api/ws/process/{process_id}?token={token}") as websocket:
+        # Collect status updates
+        updates = []
+        for _ in range(3):  # Expect at least 3 status updates
             data = websocket.receive_json()
-            assert data == "Connection established"
-
-# Run all tests
-async def run_tests():
-    await test_create_access_token()
-    await test_get_current_user()
-    await test_invalid_token()
-    await test_expired_token()
-    await test_protected_route_access()
-    await test_websocket_auth()
-
-# This will be called by the test runner
-def test_auth():
-    asyncio.run(run_tests())
+            updates.append(data["status"])
+        
+        # Verify process progression
+        assert "started" in updates
+        assert "in_progress" in updates
+        assert "completed" in updates

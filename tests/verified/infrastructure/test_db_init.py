@@ -55,20 +55,28 @@ Mock User vs Test User:
 """
 
 import os
-import logging
-import asyncio
-from uuid import UUID
-from sqlalchemy import select, text
-from datetime import datetime
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from api.core.base import Base
-from api.core.database import get_db
-from api.core.models import (
-    User, LLMProvider, Topic, Blueprint, TerminalObjective,
-    EnablingObjective, FlowExecution, IdempotencyKey, FlowLog,
-    FlowExecutionStatus, CognitiveLevelEnum, LogLevel
-)
+from sqlalchemy import select, text
+import logging
+import sys
+import traceback
+from typing import AsyncGenerator
+from uuid import UUID
+
+from api.core.models import Base, User, LLMProvider
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Add a console handler if not already present
+if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
 # Mock user constants - these should be used across all tests
 # WARNING: This mock user should NEVER be deleted as other tests depend on it
@@ -76,11 +84,9 @@ MOCK_USER_ID = UUID('f9b5645d-898b-4d58-b10a-a6b50a9d234b')
 MOCK_USER_EMAIL = 'test_mock_user@quizmasterpro.test'
 MOCK_USER_NAME = 'Mock Test User'
 
-async def init_test_database():
-    """Initialize test database with tables if they don't exist"""
-    # Note: We only create tables if they don't exist
-    # We do NOT drop tables to preserve the mock user
-    # Get database URL from environment variables
+@pytest.fixture(scope="session")
+async def test_engine():
+    """Create test database engine"""
     DB_USER = os.getenv("POSTGRES_USER", "test_user")
     DB_PASS = os.getenv("POSTGRES_PASSWORD", "test_password")
     DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
@@ -89,12 +95,16 @@ async def init_test_database():
     
     DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     
-    # Create engine
     engine = create_async_engine(DATABASE_URL, echo=True)
-    
-    # Bind engine to Base
-    Base.metadata.bind = engine
-    
+    try:
+        yield engine
+    finally:
+        await engine.dispose()
+
+@pytest.fixture(scope="session")
+async def init_db(test_engine):
+    """Initialize database schema"""
+    engine = await anext(test_engine)
     async with engine.begin() as conn:
         # Drop all tables except users
         await conn.execute(text("DROP TABLE IF EXISTS flow_logs CASCADE"))
@@ -105,76 +115,81 @@ async def init_test_database():
         await conn.execute(text("DROP TABLE IF EXISTS blueprints CASCADE"))
         await conn.execute(text("DROP TABLE IF EXISTS topics CASCADE"))
         
-        # Create tables
+        # Create all tables
         await conn.run_sync(Base.metadata.create_all)
     
-    await engine.dispose()
+    yield engine
 
-async def ensure_mock_user_exists():
-    """
-    Ensure our mock test user exists in the database.
-    This user should NEVER be deleted as it's used by other tests for authentication.
-    """
-    logging.info("Checking for mock test user...")
+@pytest.fixture(scope="function")
+async def test_session(init_db) -> AsyncGenerator[AsyncSession, None]:
+    """Create a fresh session for each test."""
+    logger.debug("Creating test session")
     
-    async for db in get_db():
-        # Check if mock user exists
-        query = select(User).where(User.user_id == MOCK_USER_ID)
-        result = await db.execute(query)
-        existing_user = result.scalar_one_or_none()
+    engine = await anext(init_db)
+    session = AsyncSession(engine)
+    logger.debug("Created AsyncSession object")
+    
+    await session.begin()
+    logger.debug("Session transaction begun")
+    
+    try:
+        logger.debug("Yielding session to test")
+        yield session
+        logger.debug("Test completed, cleaning up session")
+    except Exception as e:
+        logger.error(f"Error in test_session fixture: {str(e)}")
+        raise
+    finally:
+        try:
+            logger.debug("Rolling back session")
+            await session.rollback()
+            logger.debug("Closing session")
+            await session.close()
+            logger.debug("Session cleanup completed")
+        except Exception as e:
+            logger.error(f"Error during session cleanup: {str(e)}")
+
+@pytest.mark.asyncio
+async def test_ensure_mock_user_exists(test_session):
+    """Test creating/finding mock user"""
+    logger.debug("Starting test_ensure_mock_user_exists")
+    try:
+        session = await anext(test_session)
         
-        if existing_user is None:
-            logging.info("Creating mock test user...")
+        logger.debug("Creating query to find mock user")
+        query = select(User).where(User.user_id == MOCK_USER_ID)
+        logger.debug(f"Executing query: {query}")
+    
+        logger.debug("About to execute query")
+        result = await session.execute(query)
+        logger.debug("Query executed")
+        
+        user = result.scalar_one_or_none()
+        logger.debug(f"Query result: {user}")
+        
+        if user is None:
+            logger.debug("Mock user not found, creating new one")
             user = User(
                 user_id=MOCK_USER_ID,
                 email=MOCK_USER_EMAIL,
                 name=MOCK_USER_NAME,
-                llm_provider=LLMProvider.openai,
-                encrypted_openai_key=None,
-                encrypted_anthropic_key=None
+                llm_provider=LLMProvider.OPENAI
             )
-            db.add(user)
-            await db.commit()
-            logging.info("Mock test user created successfully")
+            session.add(user)
+            await session.commit()
+            logger.debug("Created new mock user")
         else:
-            logging.info("Mock test user already exists")
-            # Verify mock user has correct data
-            if (existing_user.email != MOCK_USER_EMAIL or 
-                existing_user.name != MOCK_USER_NAME or
-                existing_user.llm_provider != LLMProvider.openai):
-                logging.info("Updating mock test user data...")
-                existing_user.email = MOCK_USER_EMAIL
-                existing_user.name = MOCK_USER_NAME
-                existing_user.llm_provider = LLMProvider.openai
-                await db.commit()
-                logging.info("Mock test user data updated")
-
-async def test_mock_user_exists():
-    """Test that we can find the mock test user"""
-    logging.info("Testing database connection...")
-    logging.info(f"Database URL: {None}")  # Don't log the full URL
-    logging.info(f"Database User: {os.getenv('POSTGRES_USER', 'test_user')}")
-    logging.info(f"Database Name: quizmaster_test")
-    
-    # Initialize database and ensure mock user exists
-    await init_test_database()
-    await ensure_mock_user_exists()
-    
-    async for db in get_db():
-        # Verify mock user exists and has correct data
-        query = select(User).where(User.user_id == MOCK_USER_ID)
-        result = await db.execute(query)
-        user = result.scalar_one()
+            logger.debug("Mock user already exists")
         
-        assert user is not None, "Mock test user not found"
-        assert user.email == MOCK_USER_EMAIL, f"Mock user email mismatch: {user.email} != {MOCK_USER_EMAIL}"
-        assert user.name == MOCK_USER_NAME, f"Mock user name mismatch: {user.name} != {MOCK_USER_NAME}"
+        assert user is not None
+        assert user.user_id == MOCK_USER_ID
+        assert user.email == MOCK_USER_EMAIL
+        assert user.name == MOCK_USER_NAME
+        logger.debug("Mock user assertions passed")
         
-        logging.info("Mock test user verified")
-
-async def test_main():
-    """Main test function"""
-    await test_mock_user_exists()
-
-if __name__ == "__main__":
-    asyncio.run(test_main())
+    except Exception as e:
+        logger.error(f"Error in test: {str(e)}")
+        logger.error(f"Error traceback: {traceback.format_exc()}")
+        raise
+    finally:
+        logger.debug("Test cleanup completed")

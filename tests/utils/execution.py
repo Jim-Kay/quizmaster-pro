@@ -59,71 +59,71 @@ class TestExecutor:
             return os.path.join(self.project_root, 'frontend')
         return str(self.project_root)
 
-async def run_test(self, test_path: str, metadata: TestMetadata) -> TestResult:
-    """Run a single test file"""
-    # Validate working directory and required paths
-    if not self.validate_working_directory(metadata):
-        return TestResult(success=False, duration=0, error="Invalid working directory or required paths")
-    
-    start_time = time.time()
-    try:
-        logger.info(f"Starting test: {test_path}")
+    async def run_test(self, test_path: str, metadata: TestMetadata) -> TestResult:
+        """Run a single test file"""
+        # Validate working directory and required paths
+        if not self.validate_working_directory(metadata):
+            return TestResult(success=False, duration=0, error="Invalid working directory or required paths")
         
-        # Determine working directory and python path
-        if metadata.working_directory == 'project_root':
-            working_dir = self.project_root
-        else:
-            working_dir = self.project_root / metadata.working_directory
-        
-        python_path = self.setup_python_path(metadata.working_directory)
-        
-        # Store current directory and PYTHONPATH
-        original_dir = os.getcwd()
-        original_pythonpath = os.environ.get('PYTHONPATH', '')
-        
+        start_time = time.time()
         try:
-            # Change to test working directory
-            os.chdir(working_dir)
-            os.environ['PYTHONPATH'] = f"{python_path}{os.pathsep}{original_pythonpath}"
-            logger.info(f"Changed to working directory: {working_dir}")
-            logger.info(f"Set PYTHONPATH: {os.environ['PYTHONPATH']}")
+            logger.info(f"Starting test: {test_path}")
             
-            # Import and run the test
-            logger.info(f"Attempting to import test module: {test_path}")
-            spec = importlib.util.spec_from_file_location(
-                "test_module",
-                self.project_root / test_path
-            )
-            if spec is None or spec.loader is None:
-                raise ImportError(f"Could not load test module: {test_path}")
-            
-            module = importlib.util.module_from_spec(spec)
-            logger.info(f"Executing test module: {test_path}")
-            spec.loader.exec_module(module)
-            
-            # Run test_main function if it exists
-            if hasattr(module, 'test_main'):
-                logger.info(f"Running test_main function in {test_path}")
-                await module.test_main()
-            elif hasattr(module, 'test_auth'):
-                logger.info(f"Running test_auth function in {test_path}")
-                module.test_auth()
+            # Determine working directory and python path
+            if metadata.working_directory == 'project_root':
+                working_dir = self.project_root
             else:
-                logger.warning(f"No test_main or test_auth function found in {test_path}")
+                working_dir = self.project_root / metadata.working_directory
             
+            python_path = self.setup_python_path(metadata.working_directory)
+            
+            # Store current directory and PYTHONPATH
+            original_dir = os.getcwd()
+            original_pythonpath = os.environ.get('PYTHONPATH', '')
+            
+            try:
+                # Change to test working directory
+                os.chdir(working_dir)
+                os.environ['PYTHONPATH'] = f"{python_path}{os.pathsep}{original_pythonpath}"
+                logger.info(f"Changed to working directory: {working_dir}")
+                logger.info(f"Set PYTHONPATH: {os.environ['PYTHONPATH']}")
+                
+                # Import and run the test
+                logger.info(f"Attempting to import test module: {test_path}")
+                spec = importlib.util.spec_from_file_location(
+                    "test_module",
+                    self.project_root / test_path
+                )
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Could not load test module: {test_path}")
+                
+                module = importlib.util.module_from_spec(spec)
+                logger.info(f"Executing test module: {test_path}")
+                spec.loader.exec_module(module)
+                
+                # Run test_main or test_auth function if it exists
+                if hasattr(module, 'test_main'):
+                    logger.info(f"Running test_main function in {test_path}")
+                    await module.test_main()
+                elif hasattr(module, 'test_auth'):
+                    logger.info(f"Running test_auth function in {test_path}")
+                    await module.test_auth()
+                else:
+                    logger.warning(f"No test_main or test_auth function found in {test_path}")
+                
+                duration = time.time() - start_time
+                logger.info(f"Test {test_path} completed successfully in {duration:.2f} seconds")
+                return TestResult(success=True, duration=duration)
+                
+            finally:
+                # Restore original directory and PYTHONPATH
+                os.chdir(original_dir)
+                os.environ['PYTHONPATH'] = original_pythonpath
+                
+        except Exception as e:
             duration = time.time() - start_time
-            logger.info(f"Test {test_path} completed successfully in {duration:.2f} seconds")
-            return TestResult(success=True, duration=duration)
-            
-        finally:
-            # Restore original directory and PYTHONPATH
-            os.chdir(original_dir)
-            os.environ['PYTHONPATH'] = original_pythonpath
-            
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error(f"Error running test {test_path}: {e}")
-        return TestResult(success=False, duration=duration, error=str(e))
+            logger.error(f"Error running test {test_path}: {e}")
+            return TestResult(success=False, duration=duration, error=str(e))
 
     async def run_parallel_tests(self, test_paths: list[str], test_metadata: Dict[str, TestMetadata]) -> None:
         """Run multiple tests in parallel"""

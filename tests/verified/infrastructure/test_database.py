@@ -16,7 +16,7 @@ Test Metadata:
 """
 
 import os
-import asyncio
+import pytest
 import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -42,38 +42,37 @@ settings = get_settings()
 # Database configuration
 DATABASE_URL = f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.TEST_DB_NAME}"
 
-def get_database_url():
+@pytest.fixture
+def database_url():
     return DATABASE_URL
 
-async def test_database_connection():
+@pytest.mark.asyncio
+async def test_database_connection(database_url):
     """Test database connection"""
     logging.info("Testing database connection...")
     
     # Get database URL components
-    db_url = get_database_url()
-    logging.info(f"Database URL: {db_url}")
-    
-    # Extract user and database name from URL
-    parsed = urlparse(db_url)
+    parsed = urlparse(database_url)
     logging.info(f"Database User: {parsed.username}")
     logging.info(f"Database Name: {parsed.path[1:]}")  # Remove leading '/'
     
     try:
-        engine = create_async_engine(db_url)
+        engine = create_async_engine(database_url)
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         logging.info("Database connection successful")
         return True
     except Exception as e:
         logging.error(f"Database connection failed: {str(e)}")
-        return False
+        pytest.fail(f"Database connection failed: {str(e)}")
 
-async def test_database_operations():
+@pytest.mark.asyncio
+async def test_database_operations(database_url):
     """Test basic database operations"""
     logger.info("Testing database operations...")
     
     engine = create_async_engine(
-        DATABASE_URL,
+        database_url,
         echo=False,
         poolclass=NullPool
     )
@@ -96,31 +95,23 @@ async def test_database_operations():
             await session.execute(text(
                 "INSERT INTO test_table (name) VALUES ('test')"
             ))
+            await session.commit()
             
             # Query the test record
             result = await session.execute(text(
-                "SELECT name FROM test_table WHERE name = 'test'"
+                "SELECT * FROM test_table WHERE name = 'test'"
             ))
-            row = result.scalar()
-            assert row == 'test'
+            row = result.fetchone()
+            assert row is not None, "Test record not found"
+            assert row[1] == 'test', "Test record has incorrect value"
             
             # Clean up
             await session.execute(text("DROP TABLE test_table"))
             await session.commit()
             
             logger.info("Database operations successful")
-            return True
     except Exception as e:
-        logger.error(f"Database operations failed: {e}")
-        return False
-
-async def test_main():
-    """Main test function"""
-    success = await test_database_connection()
-    assert success, "Database connection test failed"
-    
-    success = await test_database_operations()
-    assert success, "Database operations test failed"
-
-if __name__ == "__main__":
-    asyncio.run(test_main())
+        logger.error(f"Database operations failed: {str(e)}")
+        pytest.fail(f"Database operations failed: {str(e)}")
+    finally:
+        await engine.dispose()

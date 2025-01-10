@@ -3,10 +3,12 @@
 from fastapi import FastAPI, Depends, status, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from contextlib import asynccontextmanager
 
 from .core.config import get_settings
 from .core.database import init_db
-from .auth import verify_token
+from .auth import verify_token, get_current_user
+from .core.models import User
 from .routers import (
     topics,
     blueprint_generation,
@@ -17,10 +19,20 @@ from .routers import (
 
 settings = get_settings()
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for FastAPI app"""
+    # Startup: Initialize database models
+    await init_db()
+    yield
+    # Cleanup (if needed)
+    pass
+
 app = FastAPI(
     title="QuizMaster Pro API backend",
     description="Backend API for QuizMaster Pro",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -39,7 +51,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {"access_token": "test_token", "token_type": "bearer"}
 
 # WebSocket endpoint
-@app.websocket("/ws")
+@app.websocket("/api/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str):
     """WebSocket endpoint with token authentication"""
     try:
@@ -69,17 +81,12 @@ app.include_router(blueprints.router, prefix="/api")
 app.include_router(user_settings.router, prefix="/api")
 app.include_router(flow_execution.router, prefix="/api")
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database models on startup"""
-    await init_db()
-
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
 
 @app.get("/api/protected")
-async def protected_route(current_user: dict = Depends(verify_token)):
+async def protected_route(current_user: User = Depends(get_current_user)):
     """Protected route for testing authentication"""
     return {"message": "You have access to the protected route", "user": current_user}
