@@ -32,3 +32,6 @@ cmd.exe /c call conda activate crewai-quizmaster-pro&& set TEST_MODE=true&& set 
 
 #Run Pytest AsyncIO against verfied/infrastructure
 cmd.exe /c call conda activate crewai-quizmaster-pro&& set TEST_MODE=true&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& set POSTGRES_USER=test_user&& set POSTGRES_PASSWORD=test_password&& set POSTGRES_HOST=localhost&& set POSTGRES_PORT=5432&& pytest tests/verified/infrastructure/ -v
+
+#Search Helper
+cmd.exe /c call conda activate crewai-quizmaster-pro&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& python c:/ParseThat/QuizMasterPro/utils/search_helper.py

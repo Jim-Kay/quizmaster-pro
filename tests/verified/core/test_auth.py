@@ -86,25 +86,25 @@ async def async_engine() -> AsyncEngine:
 
 # Test database session
 @pytest.fixture(scope="function")
-async def db_session(async_engine: AsyncEngine) -> AsyncSession:
+async def db_session(async_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
     """Create a test database session"""
     logger.info("Creating test database session...")
     
-    session = async_sessionmaker(
+    async_session = async_sessionmaker(
         async_engine,
         class_=AsyncSession,
         expire_on_commit=False,
-    )()
+    )
     
-    async with session as s:
+    async with async_session() as session:
         try:
-            yield s
-            await s.commit()
+            yield session
+            await session.commit()
         except Exception:
-            await s.rollback()
+            await session.rollback()
             raise
         finally:
-            await s.close()
+            await session.close()
 
 # Mock user for testing
 @pytest.fixture(scope="function")
@@ -112,8 +112,11 @@ async def mock_user(db_session: AsyncSession) -> Dict:
     """Create a mock user for testing"""
     logger.info("Creating mock user...")
     
+    # Get session from generator
+    session = await db_session.__anext__()
+    
     # Check if mock user exists
-    result = await db_session.execute(
+    result = await session.execute(
         select(User).where(User.email == "test_mock_user@quizmasterpro.test")
     )
     user = result.scalar_one_or_none()
@@ -130,8 +133,8 @@ async def mock_user(db_session: AsyncSession) -> Dict:
         email="test_mock_user@quizmasterpro.test",
         name="Test Mock User"
     )
-    db_session.add(user)
-    await db_session.commit()
+    session.add(user)
+    await session.commit()
     
     return {
         "id": str(user.user_id),
@@ -171,14 +174,15 @@ async def test_get_current_user(
     """Test current user retrieval from token"""
     logger.info("Testing user retrieval from token...")
     
-    # Get mock user data
+    # Get mock user data and session
     user_data = await mock_user
+    session = await db_session.__anext__()
     
     # Create token
     token = await create_access_token(data={"sub": user_data["id"]})
     
     # Get user from token
-    user = await get_current_user(token, db_session)
+    user = await get_current_user(token, session)
     
     # Verify user data
     assert user is not None
