@@ -191,12 +191,26 @@ $startFrontend.Add_Click({
 
 $stopFrontend.Add_Click({
     if ($script:frontendProcess -ne $null) {
+        $frontendStatus.Text = "Status: Stopping..."
+        
         # Kill the process tree
-        $children = Get-CimInstance -Class Win32_Process -Filter "ParentProcessId=$($script:frontendProcess.Id)"
-        foreach ($child in $children) {
-            Stop-Process -Id $child.ProcessId -Force
+        $processesToKill = Get-CimInstance -Class Win32_Process | Where-Object { $_.ParentProcessId -eq $script:frontendProcess.Id -or $_.ProcessId -eq $script:frontendProcess.Id }
+        foreach ($process in $processesToKill) {
+            Stop-Process -Id $process.ProcessId -Force -ErrorAction SilentlyContinue
         }
-        Stop-Process -Id $script:frontendProcess.Id -Force
+        
+        # Wait for processes to fully terminate
+        Start-Sleep -Seconds 2
+        
+        # Check if any Node.js processes are still running on port 3000
+        $runningOnPort = Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Listen" }
+        if ($runningOnPort) {
+            $processId = $runningOnPort.OwningProcess
+            $process = Get-Process -Id $processId -ErrorAction SilentlyContinue
+            if ($process -and $process.Name -eq "node") {
+                Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+            }
+        }
         
         $script:frontendProcess = $null
         $frontendStatus.Text = "Status: Not Running"
