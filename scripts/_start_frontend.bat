@@ -1,18 +1,20 @@
 @echo off
+REM Start the frontend server
 setlocal
 
 if "%1"=="" (
-    set QUIZMASTER_ENV=development
+    set NODE_ENV=development
 ) else (
-    set QUIZMASTER_ENV=%1
+    set NODE_ENV=%1
 )
 
-echo Starting frontend in %QUIZMASTER_ENV% environment...
+echo Starting frontend in %NODE_ENV% environment...
 
 CALL conda activate crewai-quizmaster-pro
 
 cd C:\ParseThat\QuizMasterPro\frontend
-set NEXT_PUBLIC_QUIZMASTER_ENV=%QUIZMASTER_ENV%
+
+REM Run npm command
 npm run dev
 
 endlocal

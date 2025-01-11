@@ -3,19 +3,21 @@ REM Start the backend server
 setlocal
 
 if "%1"=="" (
-    set QUIZMASTER_ENV=development
+    set QUIZMASTER_ENVIRONMENT=development
 ) else (
-    set QUIZMASTER_ENV=%1
+    set QUIZMASTER_ENVIRONMENT=%1
 )
 
-echo Starting backend in %QUIZMASTER_ENV% environment...
+echo Starting backend in %QUIZMASTER_ENVIRONMENT% environment...
 
 call conda activate crewai-quizmaster-pro
 
 cd C:\ParseThat\QuizMasterPro\backend
 
-set TEST_MODE=true
-set QUIZMASTER_ENV=%QUIZMASTER_ENV%
+REM Copy environment-specific .env file
+copy /Y .env.%QUIZMASTER_ENVIRONMENT% .env
+
+set QUIZMASTER_ENVIRONMENT=%QUIZMASTER_ENVIRONMENT%
 python -m uvicorn api.main:app --reload
 
 endlocal

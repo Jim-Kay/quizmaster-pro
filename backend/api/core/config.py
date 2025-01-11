@@ -6,11 +6,11 @@ from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
 # Import environment configuration
-environment = os.getenv("QUIZMASTER_ENV", "development")
+environment = os.getenv("QUIZMASTER_ENVIRONMENT", "development")
 
 # Define database name based on environment
 DATABASE_NAMES = {
-    "development": "quizmaster",
+    "development": "quizmaster_dev",
     "test": "quizmaster_test",
     "production": "quizmaster"
 }

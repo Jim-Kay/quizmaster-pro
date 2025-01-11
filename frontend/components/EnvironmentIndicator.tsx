@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Box, Tooltip } from '@chakra-ui/react';
+import { Box, Tooltip, VStack, Text } from '@chakra-ui/react';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 
 interface EnvironmentInfo {
   environment: string;
@@ -16,6 +17,7 @@ interface ApiResponse {
 const EnvironmentIndicator: React.FC = () => {
   const [envInfo, setEnvInfo] = useState<EnvironmentInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const frontendEnv = process.env.NODE_ENV || 'development';
 
   useEffect(() => {
     const fetchEnvironment = async () => {
@@ -29,7 +31,6 @@ const EnvironmentIndicator: React.FC = () => {
         }
         const data = await response.json();
         console.log('Received data:', data);
-        // Handle both direct response and wrapped response
         const environmentData = data.data || data;
         setEnvInfo(environmentData);
       } catch (error) {
@@ -46,53 +47,53 @@ const EnvironmentIndicator: React.FC = () => {
   }, []);
 
   if (error || !envInfo) {
-    // Return an error indicator instead of null
     return (
       <Box
         position="fixed"
         bottom="4"
-        right="4"
-        px="4"
-        py="2"
-        borderRadius="md"
+        right="20"
         bg="red.500"
         color="white"
-        fontWeight="bold"
-        boxShadow="md"
-        zIndex={1000}
+        px={3}
+        py={2}
+        borderRadius="md"
+        fontSize="sm"
+        zIndex={9999}
       >
-        ENV ERROR
+        Error: {error || 'Loading...'}
       </Box>
     );
   }
 
+  const environmentsMatch = frontendEnv.toLowerCase() === envInfo.environment.toLowerCase();
+  const tooltipContent = environmentsMatch 
+    ? envInfo.description 
+    : `Warning: Environment Mismatch!\nFrontend: ${frontendEnv}\nBackend: ${envInfo.environment}\n\n${envInfo.description}`;
+
   return (
-    <Tooltip label={envInfo.description} placement="left">
+    <Tooltip label={tooltipContent} placement="top-end">
       <Box
         position="fixed"
         bottom="4"
-        right="4"
-        px="4"
-        py="2"
+        right="20"
+        px={3}
+        py={2}
         borderRadius="md"
-        bg={envInfo.color}
-        color="white"
-        fontWeight="bold"
-        boxShadow="md"
-        zIndex={1000}
+        fontSize="sm"
+        zIndex={9999}
         display="flex"
         alignItems="center"
-        gap="2"
-        cursor="help"
+        gap={2}
+        bg={environmentsMatch ? envInfo.color : 'orange.400'}
+        color="white"
       >
-        <Box
-          w="3"
-          h="3"
-          borderRadius="full"
-          bg="white"
-          opacity={0.8}
-        />
-        {envInfo.environment.toUpperCase()}
+        {!environmentsMatch && (
+          <ExclamationTriangleIcon width={16} height={16} />
+        )}
+        <VStack spacing={0} align="flex-end">
+          <Text fontSize="xs" opacity={0.8}>Frontend: {frontendEnv}</Text>
+          <Text fontSize="xs" opacity={0.8}>Backend: {envInfo.environment}</Text>
+        </VStack>
       </Box>
     </Tooltip>
   );
