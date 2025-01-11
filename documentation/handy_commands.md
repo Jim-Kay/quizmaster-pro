@@ -30,8 +30,10 @@ cmd.exe /c call conda activate crewai-quizmaster-pro&& pip install python-multip
 ## db_init test 
 cmd.exe /c call conda activate crewai-quizmaster-pro&& set TEST_MODE=true&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& set POSTGRES_USER=test_user&& set POSTGRES_PASSWORD=test_password&& set POSTGRES_HOST=localhost&& set POSTGRES_PORT=5432&& pytest tests/verified/infrastructure/test_db_init.py -v
 
-#Run Pytest AsyncIO against verfied/infrastructure
-cmd.exe /c call conda activate crewai-quizmaster-pro&& set TEST_MODE=true&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& set POSTGRES_USER=test_user&& set POSTGRES_PASSWORD=test_password&& set POSTGRES_HOST=localhost&& set POSTGRES_PORT=5432&& pytest tests/verified/infrastructure/ -v
-
 #Search Helper
 cmd.exe /c call conda activate crewai-quizmaster-pro&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& python c:/ParseThat/QuizMasterPro/utils/search_helper.py
+
+#test_auth.py
+cmd.exe /c call conda activate crewai-quizmaster-pro&& set TEST_MODE=true&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& set POSTGRES_USER=test_user&& set POSTGRES_PASSWORD=test_password&& set POSTGRES_HOST=localhost&& set POSTGRES_PORT=5432&& pytest tests/verified/core/test_auth.py -v
+#test_db_session.py
+cmd.exe /c call conda activate crewai-quizmaster-pro&& set TEST_MODE=true&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& set POSTGRES_USER=test_user&& set POSTGRES_PASSWORD=test_password&& set POSTGRES_HOST=localhost&& set POSTGRES_PORT=5432&& pytest tests/verified/core/test_db_session.py -v

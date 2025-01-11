@@ -208,18 +208,98 @@ Follow these steps to refactor existing code to use the new structure:
 1. **Test Organization**
    ```
    tests/
-     unit/
-       core/         # Core module tests
-       routers/      # Router tests
-       flows/        # Flow tests
-     integration/    # Integration tests
-     conftest.py    # Test fixtures
+   ├── verified/                # Verified and documented tests
+   │   ├── infrastructure/     # Infrastructure and database tests
+   │   ├── core/              # Core functionality tests
+   │   ├── integration/       # Integration tests
+   │   └── documentation/     # Test documentation files
+   ├── unit/                  # Simple unit tests using pytest
+   │   ├── backend/          # Backend unit tests
+   │   └── frontend/         # Frontend unit tests
+   └── uncategorized/        # Supporting test files and configurations
+       ├── config/           # Test configuration files
+       ├── data/            # Test data files and fixtures
+       └── logs/            # Test log directory
    ```
 
-2. **Test Dependencies**
-   - Import test utilities from `tests/utils.py`
-   - Use test database configurations
-   - Create fixtures for common dependencies
+2. **Test Documentation Requirements**
+   Each test file must include a header comment with:
+   ```python
+   """
+   Test Name: [Test name]
+   Description: [Brief description]
+
+   Test Metadata:
+       Level: [Test level 0-4]
+       Dependencies: [List of dependent tests]
+       Blocking: [True/False]
+       Parallel_Safe: [True/False]
+       Estimated_Duration: [Time in seconds]
+       Working_Directory: [Directory to run from]
+       Required_Paths: [List of required files/directories]
+
+   Environment:
+       - Conda Environment: [environment name]
+       - Required Services: [list of required services]
+
+   Setup:
+       1. [Setup step 1]
+       2. [Setup step 2]
+
+   Execution:
+       [Command to run the test]
+
+   Expected Results:
+       [Success criteria]
+
+   Notes:
+       [Additional information, warnings, or special considerations]
+   """
+   ```
+
+3. **Test Categories**
+   - **Infrastructure Tests**: Database connectivity, session management, connection pooling
+   - **Core Tests**: User authentication, API endpoints, data validation
+   - **Integration Tests**: End-to-end workflows, complex user scenarios
+
+4. **Mock User Management**
+   The test suite maintains two types of test users:
+   - **Mock User (Persistent)**:
+     - Fixed UUID: f9b5645d-898b-4d58-b10a-a6b50a9d234b
+     - Never deleted
+     - Used for authentication tests
+   - **Test User (Temporary)**:
+     - Dynamic UUID
+     - Created/deleted per test
+     - Used for CRUD operations
+
+5. **Test Execution Guidelines**
+   ```bash
+   # Set environment variables
+   set TEST_MODE=true
+   set PYTHONPATH=/path/to/backend
+   set POSTGRES_USER=test_user
+   set POSTGRES_PASSWORD=test_password
+   set POSTGRES_HOST=localhost
+   set POSTGRES_PORT=5432
+
+   # Run infrastructure tests
+   pytest tests/verified/infrastructure/ -v
+
+   # Run core tests
+   pytest tests/verified/core/ -v
+
+   # Run integration tests
+   pytest tests/verified/integration/ -v
+   ```
+
+6. **Test Dependencies**
+   Required packages are specified in `requirements.txt`:
+   - fastapi==0.109.0
+   - pydantic==2.10.4
+   - SQLAlchemy==2.0.36
+   - pytest-asyncio==0.23.3
+   - python-multipart>=0.0.7
 
 ## Common Issues and Solutions
 

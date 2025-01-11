@@ -42,7 +42,7 @@ async def create_access_token(data: dict, expires_delta: Optional[timedelta] = N
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-async def verify_token(token: str) -> Optional[User]:
+async def verify_token(token: str, db: AsyncSession) -> Optional[User]:
     """Verify a JWT token and return the user"""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
@@ -50,20 +50,21 @@ async def verify_token(token: str) -> Optional[User]:
         if user_id is None:
             return None
         
-        # Get user from database using session directly
-        session = get_session()
-        try:
-            result = await session.execute(select(User).where(User.user_id == user_id))
-            user = result.scalar_one_or_none()
-            return user
-        finally:
-            await session.close()
-    except jwt.JWTError:
+        # Use provided session to get user
+        result = await db.execute(
+            select(User).where(User.user_id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        return user
+    except (JWTError, ValueError):
         return None
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> User:
     """Get current authenticated user from token"""
-    user = await verify_token(token)
+    user = await verify_token(token, db)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

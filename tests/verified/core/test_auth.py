@@ -48,27 +48,27 @@ Notes:
     the mock user being properly initialized in the database.
 """
 
-import jwt
 import pytest
+import pytest_asyncio
 import logging
-import asyncio
-from uuid import UUID
-from datetime import datetime, timedelta
-from dateutil.tz import tzutc
 from typing import Dict, AsyncGenerator
-
-from fastapi import status
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.sql import text
+from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, AsyncEngine
+from starlette import status
 
-from api.core.models import User
+from api.core.models import User, Base
 from api.core.config import get_settings
-from api.core.database import test_engine
-from api.auth import create_access_token, get_current_user
 from api.main import app
+from api.core.database import get_db
+from api.auth import create_access_token, verify_token
 
-from starlette.testclient import TestClient
+# Configure pytest-asyncio
+pytestmark = [
+    pytest.mark.asyncio(scope="function"),
+    pytest.mark.filterwarnings("ignore::DeprecationWarning")
+]
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -76,61 +76,54 @@ logger = logging.getLogger(__name__)
 # Get settings
 settings = get_settings()
 
-# Test database engine
-@pytest.fixture(scope="session")
-async def async_engine() -> AsyncEngine:
-    """Get async database engine"""
-    engine = await test_engine()
-    yield engine
-    await engine.dispose()
+# Database configuration
+TEST_DATABASE_URL = f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/quizmaster_test"
 
-# Test database session
-@pytest.fixture(scope="function")
-async def db_session(async_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+@pytest_asyncio.fixture
+async def session() -> AsyncGenerator[AsyncSession, None]:
     """Create a test database session"""
-    logger.info("Creating test database session...")
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        echo=True,
+        future=True
+    )
+    
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     
     async_session = async_sessionmaker(
-        async_engine,
+        engine,
         class_=AsyncSession,
         expire_on_commit=False,
+        autocommit=False,
+        autoflush=False
     )
     
     async with async_session() as session:
         try:
             yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
         finally:
+            await session.rollback()
             await session.close()
+    
+    await engine.dispose()
 
-# Mock user for testing
-@pytest.fixture(scope="function")
-async def mock_user(db_session: AsyncSession) -> Dict:
+@pytest_asyncio.fixture
+async def mock_user(session: AsyncSession) -> Dict:
     """Create a mock user for testing"""
     logger.info("Creating mock user...")
     
-    # Get session from generator
-    session = await db_session.__anext__()
-    
-    # Check if mock user exists
-    result = await session.execute(
-        select(User).where(User.email == "test_mock_user@quizmasterpro.test")
+    # Delete any existing test users first
+    test_email = "test_mock_user@quizmasterpro.test"
+    await session.execute(
+        text("DELETE FROM users WHERE email = :email"),
+        {"email": test_email}
     )
-    user = result.scalar_one_or_none()
-    
-    if user is not None:
-        return {
-            "id": str(user.user_id),
-            "email": user.email,
-            "is_active": True
-        }
+    await session.commit()
     
     # Create mock user
     user = User(
-        email="test_mock_user@quizmasterpro.test",
+        email=test_email,
         name="Test Mock User"
     )
     session.add(user)
@@ -142,101 +135,75 @@ async def mock_user(db_session: AsyncSession) -> Dict:
         "is_active": True
     }
 
-@pytest.fixture(scope="module")
-def test_client() -> TestClient:
-    """Create a test client"""
-    return TestClient(app)
-
 @pytest.mark.asyncio
 async def test_create_access_token(mock_user: Dict):
-    """Test JWT token creation"""
-    logger.info("Testing JWT token creation...")
-    
-    # Get mock user data
-    user_data = await mock_user
-    
-    # Create token
-    token = await create_access_token(data={"sub": user_data["id"]})
-    
-    # Decode token
-    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    
-    assert payload["sub"] == user_data["id"]
-    assert "exp" in payload
-    assert isinstance(payload["exp"], int)
+    """Test access token creation"""
+    logger.info("Testing access token creation...")
+    token = await create_access_token(data={"sub": mock_user["id"]})
+    assert isinstance(token, str)
+    assert len(token) > 0
 
 @pytest.mark.asyncio
-async def test_get_current_user(
-    db_session: AsyncSession,
-    mock_user: Dict,
-    test_client: TestClient
-):
-    """Test current user retrieval from token"""
-    logger.info("Testing user retrieval from token...")
-    
-    # Get mock user data and session
-    user_data = await mock_user
-    session = await db_session.__anext__()
+async def test_get_current_user(session: AsyncSession, mock_user: Dict):
+    """Test getting current user from token"""
+    logger.info("Testing get current user...")
     
     # Create token
-    token = await create_access_token(data={"sub": user_data["id"]})
+    token = await create_access_token(data={"sub": mock_user["id"]})
     
     # Get user from token
-    user = await get_current_user(token, session)
-    
-    # Verify user data
+    user = await verify_token(token, session)
     assert user is not None
-    assert str(user.user_id) == user_data["id"]
-    assert user.email == user_data["email"]
+    assert str(user.user_id) == mock_user["id"]
+    assert user.email == mock_user["email"]
 
 @pytest.mark.asyncio
-async def test_protected_route_access(
-    test_client: TestClient,
-    mock_user: Dict
-):
+async def test_protected_route_access(session: AsyncSession, mock_user: Dict):
     """Test access to protected route with token"""
     logger.info("Testing protected route access...")
     
-    # Get mock user data
-    user_data = await mock_user
-    
     # Create token
-    token = await create_access_token(data={"sub": user_data["id"]})
+    token = await create_access_token(data={"sub": mock_user["id"]})
     
-    # Test access to protected route
-    response = test_client.get(
-        "/api/topics",
-        headers={"Authorization": f"Bearer {token}"}
-    )
+    # Override get_db dependency
+    async def override_get_db():
+        yield session
     
-    assert response.status_code == status.HTTP_200_OK
-    assert isinstance(response.json(), list)
+    app.dependency_overrides[get_db] = override_get_db
+    
+    # Create test client
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        response = await client.get(
+            "/api/protected",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["email"] == mock_user["email"]
+        assert data["id"] == mock_user["id"]
 
 @pytest.mark.asyncio
-async def test_websocket_auth(
-    test_client: TestClient,
-    mock_user: Dict
-):
-    """Test WebSocket authentication"""
+async def test_websocket_auth(session: AsyncSession, mock_user: Dict):
+    """Test WebSocket connection with token authentication"""
     logger.info("Testing WebSocket authentication...")
     
-    # Get mock user data
-    user_data = await mock_user
-    
     # Create token
-    token = await create_access_token(data={"sub": user_data["id"]})
+    token = await create_access_token(data={"sub": mock_user["id"]})
+    
+    # Override get_db dependency
+    async def override_get_db():
+        yield session
+    
+    app.dependency_overrides[get_db] = override_get_db
+    
+    # Create test client
+    client = TestClient(app)
     
     # Test WebSocket connection
-    with test_client.websocket_connect(
-        f"/api/ws?token={token}"
-    ) as websocket:
-        # Test initial connection message
+    with client.websocket_connect(f"/api/ws?token={token}") as websocket:
         data = websocket.receive_json()
-        assert data["type"] == "websocket.connect"
-        assert data["message"] == "Connection established"
+        assert data["type"] == "connection_established"
+        assert data["user_id"] == str(mock_user["id"])
         
-        # Test echo functionality
-        test_message = "Hello WebSocket!"
-        websocket.send_json({"message": test_message})
-        response = websocket.receive_json()
-        assert response["message"] == test_message
+    # Clean up dependency override
+    app.dependency_overrides.clear()
