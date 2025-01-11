@@ -5,8 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, Any
 
-from .core.config import get_settings
+from .core.config import get_settings, Settings
 from .core.database import init_db, get_db
 from .auth import verify_token, get_current_user
 from .core.models import User
@@ -15,7 +16,8 @@ from .routers import (
     blueprint_generation,
     blueprints,
     user_settings,
-    flow_execution
+    flow_execution,
+    environment
 )
 
 settings = get_settings()
@@ -29,11 +31,34 @@ async def lifespan(app: FastAPI):
     # Cleanup (if needed)
     pass
 
+# Define OpenAPI tags metadata
+tags_metadata = [
+    {
+        "name": "Environment",
+        "description": "Operations related to environment information and configuration",
+    },
+    {
+        "name": "Health",
+        "description": "Health check endpoint to verify API status",
+    }
+]
+
 app = FastAPI(
     title="QuizMaster Pro API backend",
-    description="Backend API for QuizMaster Pro",
+    description="""
+    Backend API for QuizMaster Pro - An intelligent quiz generation and management system.
+    
+    Key Features:
+    * Environment Management
+    * Topic Management
+    * Blueprint Generation
+    * Flow Execution
+    """,
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=tags_metadata
 )
 
 # Configure CORS
@@ -99,8 +124,15 @@ app.include_router(blueprint_generation.router, prefix="/api")
 app.include_router(blueprints.router, prefix="/api")
 app.include_router(user_settings.router, prefix="/api")
 app.include_router(flow_execution.router, prefix="/api")
+app.include_router(environment.router, prefix="/api")
 
-@app.get("/api/health")
-async def health_check():
+@app.get(
+    "/api/health",
+    tags=["Health"],
+    summary="Health Check",
+    description="Simple health check endpoint to verify the API is running.",
+    response_description="Health status of the API"
+)
+async def health_check() -> Dict[str, str]:
     """Health check endpoint"""
     return {"status": "healthy"}

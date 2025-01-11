@@ -5,6 +5,7 @@ import Navbar from "@/components/layout/Navbar";
 import SessionProvider from "@/components/providers/SessionProvider";
 import ChakraProvider from "@/components/providers/ChakraProvider";
 import QueryProvider from '@/providers/QueryProvider';
+import EnvironmentIndicator from "@/components/EnvironmentIndicator";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -29,6 +30,7 @@ export default function RootLayout({
                 {children}
               </main>
             </QueryProvider>
+            <EnvironmentIndicator />
           </ChakraProvider>
         </SessionProvider>
       </body>

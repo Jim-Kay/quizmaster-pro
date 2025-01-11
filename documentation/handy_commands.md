@@ -1,19 +1,21 @@
+###Good to Know
+There are three different environment variables with URLs:
+BACKEND_URL=http://localhost:8000   -- Backend
+NEXT_PUBLIC_API_URL=http://localhost:3000  -- Frontend
+NEXTAUTH_URL=http://localhost:3000  -- Auth Url
+
+
 ###Handy Commands
 
 ##Prompts to get started:
 Review the 
-documentation\TEST_PLAN.md
+documentation\TEST_PLAN_v2.md
 
 as well as 
-documentation\BACKEND_ARCHITECTURE.md
+documentation\BACKEND_ARCHITECTURE_v1.md
 
-Then try to run 
-tests\test_runner.py
-
-using a command like this:
-
-cmd.exe /c set TEST_MODE=true&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& set POSTGRES_USER=test_user&& set POSTGRES_PASSWORD=test_password&& set POSTGRES_HOST=localhost&& set POSTGRES_PORT=5432&& call conda activate crewai-quizmaster-pro&& python tests/test_runner.py
-
+Then try to run the verified tests:
+cmd.exe /c call conda activate crewai-quizmaster-pro&& set TEST_MODE=true&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& set POSTGRES_USER=test_user&& set POSTGRES_PASSWORD=test_password&& set POSTGRES_HOST=localhost&& set POSTGRES_PORT=5432&& pytest tests/verified
 
 
 ##Run Test Runner

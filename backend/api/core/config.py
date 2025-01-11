@@ -1,64 +1,90 @@
-"""Application configuration"""
-
+"""Application configuration."""
 import os
 from functools import lru_cache
 from typing import Optional
-from pathlib import Path
-
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Import environment configuration
+environment = os.getenv("QUIZMASTER_ENV", "development")
+
+# Define database name based on environment
+DATABASE_NAMES = {
+    "development": "quizmaster",
+    "test": "quizmaster_test",
+    "production": "quizmaster"
+}
+
+# Define environment colors for UI
+ENVIRONMENT_COLORS = {
+    "development": "#2196F3",  # Blue
+    "test": "#FF9800",        # Orange
+    "production": "#4CAF50"   # Green
+}
+
+# Define environment descriptions
+ENVIRONMENT_DESCRIPTIONS = {
+    "development": "Development Environment - For local development and testing",
+    "test": "Test Environment - For QA and integration testing",
+    "production": "Production Environment - Live system"
+}
 
 class Settings(BaseSettings):
-    """Application settings"""
+    """Application settings."""
+    # Environment settings
+    environment: str = environment
     
-    # Database
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "quizmaster"
-    TEST_DB_NAME: str = "quizmaster_test"
+    # Database settings
+    postgres_user: str = os.getenv("POSTGRES_USER", "postgres")
+    postgres_password: str = os.getenv("POSTGRES_PASSWORD", "postgres")
+    postgres_host: str = os.getenv("POSTGRES_HOST", "localhost")
+    postgres_port: str = os.getenv("POSTGRES_PORT", "5432")
+    postgres_db: str = DATABASE_NAMES.get(environment, "quizmaster")
     
-    # API
-    API_HOST: str = "localhost"
-    API_PORT: int = 8000
+    # API settings
+    api_host: str = "localhost"
+    api_port: int = 8000
     
-    # Security
-    SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    NEXTAUTH_SECRET: str
-    ENCRYPTION_KEY: str
-    
-    # Feature flags
-    MOCK_AUTH: bool = False
-    
-    # External APIs
-    SERPER_API_KEY: Optional[str] = None
+    # Auth settings
+    auth_secret: str = os.getenv("AUTH_SECRET", "your-secret-key")
+    auth_algorithm: str = "HS256"
+    auth_token_expire_minutes: int = 30
     
     # Python settings
-    PYTHONIOENCODING: Optional[str] = None
+    pythonioencoding: Optional[str] = None
+    
+    @property
+    def database_url(self) -> str:
+        """Get database URL."""
+        return f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
-    model_config = ConfigDict(
-        env_file=".env",
-        case_sensitive=True,
-        env_file_encoding='utf-8',
+    @property
+    def environment_name(self) -> str:
+        """Get environment name."""
+        return self.environment
+
+    @property
+    def environment_description(self) -> str:
+        """Get environment description."""
+        return ENVIRONMENT_DESCRIPTIONS.get(self.environment, "Unknown Environment")
+
+    @property
+    def environment_color(self) -> str:
+        """Get environment color."""
+        return ENVIRONMENT_COLORS.get(self.environment, "#9E9E9E")  # Default to gray
+
+    class Config:
+        """Pydantic config."""
+        env_prefix="quizmaster_"
+        case_sensitive=False
+        env_file = ".env"
+        env_file_encoding='utf-8'
         extra="allow"
-    )
 
 @lru_cache()
-def get_settings() -> Settings:
-    """Get cached settings instance"""
-    # Check if we're in test mode
-    env_file = ".env"
-    if os.getenv("TEST_MODE") == "true":
-        env_file = ".env.test"
-    
-    return Settings(_env_file=env_file)
+def get_settings():
+    """Get cached settings."""
+    return Settings()
 
-# Export get_settings function
-__all__ = ["get_settings"]
+# Export get_settings function and Settings class
+__all__ = ["get_settings", "Settings"]
