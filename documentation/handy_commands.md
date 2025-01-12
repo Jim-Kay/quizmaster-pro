@@ -46,3 +46,7 @@ conda run -n crewai-quizmaster-pro --no-capture-output python scripts/init_dev_d
 
 ##New Test runner (run_tests.py)  - in DEV
 conda run -n crewai-quizmaster-pro --no-capture-output set QUIZMASTER_ENVIRONMENT=development&& python scripts/run_tests.py tests/verified/infrastructure/test_db_init.py -v -s
+
+##Build backend docker image
+C:\ParseThat\QuizMasterPro>powershell -Command cd ./backend; docker build -t quizmaster-backend:latest .
+

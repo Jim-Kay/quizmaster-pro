@@ -18,11 +18,10 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "test_password")
     POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
-    POSTGRES_DB: str = "quizmaster"
-    TEST_DB_NAME: str = "quizmaster_test"
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "quizmaster")
+    TEST_DB_NAME: str = os.getenv("TEST_DB_NAME", "quizmaster_test")
     
     # Test Settings
-    TEST_MODE: bool = os.getenv("TEST_MODE", "false").lower() == "true"
     MOCK_AUTH: bool = os.getenv("MOCK_AUTH", "false").lower() == "true"
     
     # Security Settings
@@ -33,7 +32,7 @@ class Settings(BaseSettings):
     SERPER_API_KEY: str = os.getenv("SERPER_API_KEY", "")
 
     model_config = ConfigDict(
-        env_file=".env",
+        env_file=f".env.{os.getenv('QUIZMASTER_ENVIRONMENT', 'development')}",
         case_sensitive=True,
         env_file_encoding='utf-8',
         extra="allow"

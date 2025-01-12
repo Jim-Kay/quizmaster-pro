@@ -1,9 +1,22 @@
 @echo off
-REM Start the backend server
 
+REM Use environment parameter or default to development
+if "%1"=="" (
+    set QUIZMASTER_ENVIRONMENT=development
+) else (
+    set QUIZMASTER_ENVIRONMENT=%1
+)
+
+echo Starting backend in %QUIZMASTER_ENVIRONMENT% environment...
+
+REM Activate conda environment
 call conda activate crewai-quizmaster-pro
 
+REM Change to backend directory
 cd C:\ParseThat\QuizMasterPro\backend
 
-set TEST_MODE=true
-python -m uvicorn api.main:app --reload
+REM Set Python path
+set PYTHONPATH=C:\ParseThat\QuizMasterPro\backend
+
+REM Start uvicorn with the environment variable
+uvicorn api.main:app --reload

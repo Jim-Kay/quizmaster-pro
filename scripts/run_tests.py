@@ -1,5 +1,32 @@
 #!/usr/bin/env python
-"""Test runner script with enhanced output and logging."""
+"""Test runner script with enhanced output and logging.
+
+Usage:
+    1. Activate the conda environment:
+       ```
+       conda activate crewai-quizmaster-pro
+       ```
+
+    2. Run all verified tests:
+       ```
+       python scripts/run_tests.py
+       ```
+
+    3. Run specific test file:
+       ```
+       python scripts/run_tests.py tests/verified/test_environment.py
+       ```
+
+    4. Run with options:
+       ```
+       python scripts/run_tests.py -v  # verbose output
+       python scripts/run_tests.py -s  # show real-time output
+       python scripts/run_tests.py -e development  # run against development environment
+       ```
+
+Note: Always run this script from the project root directory (QuizMasterPro/).
+      The conda environment must be activated before running tests.
+"""
 import argparse
 import os
 import sys

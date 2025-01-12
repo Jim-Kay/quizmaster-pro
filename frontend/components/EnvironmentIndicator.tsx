@@ -8,6 +8,8 @@ interface EnvironmentInfo {
   environment: string;
   description: string;
   color: string;
+  database_name?: string;
+  process_id: number;
 }
 
 interface ApiResponse {
@@ -24,7 +26,13 @@ const EnvironmentIndicator: React.FC = () => {
       try {
         const apiUrl = process.env.BACKEND_URL || 'http://localhost:8000';
         console.log('Fetching environment info from:', `${apiUrl}/api/environment`);
-        const response = await fetch(`${apiUrl}/api/environment`);
+        const response = await fetch(`${apiUrl}/api/environment`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         console.log('Response status:', response.status);
         if (!response.ok) {
           throw new Error(`Failed to fetch environment info: ${response.status}`);
@@ -44,58 +52,64 @@ const EnvironmentIndicator: React.FC = () => {
     };
 
     fetchEnvironment();
+    
+    // Refresh environment info every 5 seconds
+    const interval = setInterval(fetchEnvironment, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   if (error || !envInfo) {
     return (
       <Box
         position="fixed"
-        bottom="4"
-        right="20"
+        top="0"
+        right="180px"
+        m={4}
+        p={2}
         bg="red.500"
         color="white"
-        px={3}
-        py={2}
         borderRadius="md"
-        fontSize="sm"
+        display="flex"
+        alignItems="center"
+        gap={2}
         zIndex={9999}
       >
-        Error: {error || 'Loading...'}
+        <ExclamationTriangleIcon width={24} height={24} />
+        <Text>Error loading environment info</Text>
       </Box>
     );
   }
 
-  const environmentsMatch = frontendEnv.toLowerCase() === envInfo.environment.toLowerCase();
-  const tooltipContent = environmentsMatch 
-    ? envInfo.description 
-    : `Warning: Environment Mismatch!\nFrontend: ${frontendEnv}\nBackend: ${envInfo.environment}\n\n${envInfo.description}`;
-
   return (
-    <Tooltip label={tooltipContent} placement="top-end">
-      <Box
-        position="fixed"
-        bottom="4"
-        right="20"
-        px={3}
-        py={2}
-        borderRadius="md"
-        fontSize="sm"
-        zIndex={9999}
-        display="flex"
-        alignItems="center"
-        gap={2}
-        bg={environmentsMatch ? envInfo.color : 'orange.400'}
-        color="white"
+    <Box
+      position="fixed"
+      top="0"
+      right="180px"
+      m={4}
+      p={2}
+      bg={envInfo.color}
+      color="white"
+      borderRadius="md"
+      zIndex={9999}
+    >
+      <Tooltip
+        label={`Frontend: ${frontendEnv}
+Backend: ${envInfo.environment}
+Database: ${envInfo.database_name || 'Unknown'}
+Process ID: ${envInfo.process_id}
+${envInfo.description}`}
+        placement="bottom-end"
       >
-        {!environmentsMatch && (
-          <ExclamationTriangleIcon width={16} height={16} />
-        )}
         <VStack spacing={0} align="flex-end">
-          <Text fontSize="xs" opacity={0.8}>Frontend: {frontendEnv}</Text>
-          <Text fontSize="xs" opacity={0.8}>Backend: {envInfo.environment}</Text>
+          <Text fontWeight="bold">
+            {envInfo.environment.toUpperCase()}
+          </Text>
+          <Text fontSize="xs">
+            DB: {envInfo.database_name || 'Unknown'}
+          </Text>
         </VStack>
-      </Box>
-    </Tooltip>
+      </Tooltip>
+    </Box>
   );
 };
 

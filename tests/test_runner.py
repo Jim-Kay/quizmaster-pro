@@ -10,7 +10,7 @@ Environment Setup:
        ```
     
     2. Required Environment Variables:
-       - TEST_MODE: Set to 'true' to run against test database
+       - QUIZMASTER_ENVIRONMENT: Must be set to 'test'
        - PYTHONPATH: Set to backend directory (e.g., c:/ParseThat/QuizMasterPro/backend)
        - POSTGRES_USER: Database username
        - POSTGRES_PASSWORD: Database password
@@ -49,11 +49,11 @@ Execution:
     2. Run the test runner:
        ```bash
        # First activate conda environment and set required environment variables
-       cmd /c call conda activate crewai-quizmaster-pro && set TEST_MODE=true && set PYTHONPATH=/path/to/QuizMasterPro/backend && python tests/test_runner.py
+       cmd /c call conda activate crewai-quizmaster-pro && set QUIZMASTER_ENVIRONMENT=test && set PYTHONPATH=/path/to/QuizMasterPro/backend && python tests/test_runner.py
        
        # Optionally specify mode (default is quick):
-       cmd /c call conda activate crewai-quizmaster-pro && set TEST_MODE=true && set PYTHONPATH=/path/to/QuizMasterPro/backend && python tests/test_runner.py --mode quick
-       cmd /c call conda activate crewai-quizmaster-pro && set TEST_MODE=true && set PYTHONPATH=/path/to/QuizMasterPro/backend && python tests/test_runner.py --mode full
+       cmd /c call conda activate crewai-quizmaster-pro && set QUIZMASTER_ENVIRONMENT=test && set PYTHONPATH=/path/to/QuizMasterPro/backend && python tests/test_runner.py --mode quick
+       cmd /c call conda activate crewai-quizmaster-pro && set QUIZMASTER_ENVIRONMENT=test && set PYTHONPATH=/path/to/QuizMasterPro/backend && python tests/test_runner.py --mode full
        ```
 
 Modes:
@@ -156,7 +156,7 @@ def validate_environment() -> bool:
             return False
 
         # Check required environment variables
-        required_vars = ['TEST_MODE', 'PYTHONPATH', 'POSTGRES_USER', 'POSTGRES_PASSWORD']
+        required_vars = ['QUIZMASTER_ENVIRONMENT', 'PYTHONPATH', 'POSTGRES_USER', 'POSTGRES_PASSWORD']
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
             logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
@@ -168,9 +168,9 @@ def validate_environment() -> bool:
             logger.error("PYTHONPATH must include path to backend directory")
             return False
 
-        # Check test mode
-        if os.getenv('TEST_MODE') != 'true':
-            logger.error("TEST_MODE must be set to 'true'")
+        # Check environment
+        if os.getenv('QUIZMASTER_ENVIRONMENT') != 'test':
+            logger.error("QUIZMASTER_ENVIRONMENT must be set to 'test'")
             return False
 
         return True

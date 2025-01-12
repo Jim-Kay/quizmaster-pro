@@ -1,10 +1,11 @@
 """Database connection and session management"""
 
 import logging
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Dict
 import os
+from functools import lru_cache
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, AsyncEngine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 
@@ -17,31 +18,40 @@ from .models import (
 
 # Import Base from base.py
 from .base import Base
-
-def get_database_url(test_mode=False):
-    """Get database URL from environment variables"""
-    DB_USER = os.getenv("POSTGRES_USER", "test_user")
-    DB_PASS = os.getenv("POSTGRES_PASSWORD", "test_password")
-    DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-    DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-    DB_NAME = "quizmaster_test" if test_mode else "quizmaster"
-    
-    return f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-# Create engine based on test mode
-DATABASE_URL = get_database_url(test_mode=os.getenv("TEST_MODE") == "true")
-engine = create_async_engine(DATABASE_URL, echo=True)
-
-# Create session factory
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+from .config import get_settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
+def get_database_url():
+    """Get database URL from settings"""
+    settings = get_settings()
+    return f"postgresql+asyncpg://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
+
+# Cache engines per database URL
+_engines: Dict[str, AsyncEngine] = {}
+_sessions: Dict[str, sessionmaker] = {}
+
+def get_engine() -> AsyncEngine:
+    """Get or create database engine for current settings"""
+    database_url = get_database_url()
+    if database_url not in _engines:
+        _engines[database_url] = create_async_engine(database_url, echo=True)
+    return _engines[database_url]
+
+def get_session_maker() -> sessionmaker:
+    """Get or create session maker for current settings"""
+    database_url = get_database_url()
+    if database_url not in _sessions:
+        engine = get_engine()
+        _sessions[database_url] = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    return _sessions[database_url]
+
 # Database session dependency
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Get database session"""
-    async with async_session() as session:
+    session_maker = get_session_maker()
+    async with session_maker() as session:
         try:
             yield session
         finally:
@@ -49,26 +59,15 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 # For testing and internal use where we need a session directly
 def get_session() -> AsyncSession:
-    """Get database session directly without async generator"""
-    return async_session()
-
-async def test_engine() -> AsyncGenerator:
-    """Get test database engine"""
-    test_url = get_database_url(test_mode=True)
-    test_engine = create_async_engine(test_url, echo=True)
-    yield test_engine
-    await test_engine.dispose()
-
-# This is deprecated, use get_db instead
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    """Get database session for async operations (deprecated)"""
-    async for session in get_db():
-        yield session
+    """Get a new database session"""
+    session_maker = get_session_maker()
+    return session_maker()
 
 async def init_db():
     """Initialize the database and create tables"""
+    engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 # Export functions and classes
-__all__ = ["get_db", "get_async_session", "init_db", "get_session", "Base", "test_engine"]
+__all__ = ["get_db", "init_db", "get_session", "Base"]
