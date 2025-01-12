@@ -39,3 +39,10 @@ cmd.exe /c call conda activate crewai-quizmaster-pro&& set PYTHONPATH=c:/ParseTh
 cmd.exe /c call conda activate crewai-quizmaster-pro&& set TEST_MODE=true&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& set POSTGRES_USER=test_user&& set POSTGRES_PASSWORD=test_password&& set POSTGRES_HOST=localhost&& set POSTGRES_PORT=5432&& pytest tests/verified/core/test_auth.py -v
 #test_db_session.py
 cmd.exe /c call conda activate crewai-quizmaster-pro&& set TEST_MODE=true&& set PYTHONPATH=c:/ParseThat/QuizMasterPro/backend&& set POSTGRES_USER=test_user&& set POSTGRES_PASSWORD=test_password&& set POSTGRES_HOST=localhost&& set POSTGRES_PORT=5432&& pytest tests/verified/core/test_db_session.py -v
+
+
+## Initialize DEV Database
+conda run -n crewai-quizmaster-pro --no-capture-output python scripts/init_dev_db.py
+
+##New Test runner (run_tests.py)  - in DEV
+conda run -n crewai-quizmaster-pro --no-capture-output set QUIZMASTER_ENVIRONMENT=development&& python scripts/run_tests.py tests/verified/infrastructure/test_db_init.py -v -s

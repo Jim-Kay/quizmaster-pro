@@ -13,8 +13,8 @@ class CognitiveLevelEnum(str, Enum):
     CREATE = "CREATE"
 
 class LLMProvider(str, Enum):
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
+    openai = "openai"
+    anthropic = "anthropic"
 
 # Custom field types
 EnablingObjectiveNumber = Annotated[
@@ -118,7 +118,7 @@ class User(TimestampedModel):
     id: Optional[str] = Field(default=None)
     email: str = Field(..., max_length=255)
     name: Optional[str] = Field(None, max_length=255)
-    llm_provider: LLMProvider = Field(default=LLMProvider.OPENAI)
+    llm_provider: LLMProvider = Field(default=LLMProvider.openai)
     encrypted_openai_key: Optional[str] = None
     encrypted_anthropic_key: Optional[str] = None
 

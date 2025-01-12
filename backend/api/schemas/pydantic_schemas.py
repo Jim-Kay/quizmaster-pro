@@ -11,8 +11,8 @@ import uuid
 logger = logging.getLogger(__name__)
 
 class LLMProvider(str, Enum):
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
+    openai = "openai"
+    anthropic = "anthropic"
 
 class CognitiveLevelEnum(str, Enum):
     REMEMBER = "REMEMBER"
@@ -236,7 +236,7 @@ class User(BaseModel):
     id: Optional[UUID4] = Field(default=None)
     email: str = Field(..., max_length=255)
     name: Optional[str] = Field(None, max_length=255)
-    llm_provider: LLMProvider = Field(default=LLMProvider.OPENAI)
+    llm_provider: LLMProvider = Field(default=LLMProvider.openai)
     encrypted_openai_key: Optional[str] = None
     encrypted_anthropic_key: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)

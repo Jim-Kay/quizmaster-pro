@@ -55,6 +55,11 @@ Mock User vs Test User:
 """
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env.test
+load_dotenv("backend/.env.test", override=True)
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import select, text
@@ -87,11 +92,14 @@ MOCK_USER_NAME = 'Mock Test User'
 @pytest.fixture(scope="session")
 async def test_engine():
     """Create test database engine"""
+    environment = os.getenv("QUIZMASTER_ENVIRONMENT", "test")
+    default_db = "quizmaster_dev" if environment == "development" else "quizmaster_test"
+    
     DB_USER = os.getenv("POSTGRES_USER", "test_user")
     DB_PASS = os.getenv("POSTGRES_PASSWORD", "test_password")
     DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
     DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-    DB_NAME = "quizmaster_test"
+    DB_NAME = os.getenv("POSTGRES_DB", default_db)
     
     DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     
@@ -166,6 +174,7 @@ async def init_db(test_engine):
         
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
+        await conn.commit()
     
     yield engine
 
@@ -176,10 +185,16 @@ async def test_ensure_mock_user_exists(test_session):
     try:
         session = await anext(test_session)
         
+        # Check which database we're connected to
+        logger.debug("Checking database name")
+        result = await session.execute(text("SELECT current_database();"))
+        db_name = result.scalar()
+        logger.debug(f"Connected to database: {db_name}")
+
         logger.debug("Creating query to find mock user")
         query = select(User).where(User.user_id == MOCK_USER_ID)
         logger.debug(f"Executing query: {query}")
-    
+        
         logger.debug("About to execute query")
         result = await session.execute(query)
         logger.debug("Query executed")
@@ -193,7 +208,7 @@ async def test_ensure_mock_user_exists(test_session):
                 user_id=MOCK_USER_ID,
                 email=MOCK_USER_EMAIL,
                 name=MOCK_USER_NAME,
-                llm_provider=LLMProvider.OPENAI
+                llm_provider=LLMProvider.openai
             )
             session.add(user)
             # Note: We don't need to commit here as the session fixture will handle it
