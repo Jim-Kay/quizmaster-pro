@@ -70,6 +70,54 @@ async def test_session(async_session_maker):
 - Complex user scenarios
 - Located in `tests/verified/integration/`
 
+## Test Environment Configuration
+
+### Database Connectivity
+The test environment is designed to work both locally and within Docker containers. The system automatically detects the environment and adjusts database connectivity accordingly:
+
+```python
+# Override host for local testing if not in Docker
+if not os.path.exists('/.dockerenv'):
+    settings.postgres_host = 'localhost'
+else:
+    # Use Docker-specific host
+    settings.postgres_host = 'host.docker.internal'
+```
+
+### Environment Variables
+Test environment variables use the `QUIZMASTER_` prefix to avoid conflicts:
+
+```bash
+# Database configuration
+QUIZMASTER_POSTGRES_USER=test_user
+QUIZMASTER_POSTGRES_PASSWORD=test_password
+QUIZMASTER_POSTGRES_HOST=host.docker.internal  # Automatically adjusted for local testing
+QUIZMASTER_POSTGRES_PORT=5432
+QUIZMASTER_POSTGRES_DB=quizmaster_test
+
+# Test settings
+QUIZMASTER_ENVIRONMENT=test
+QUIZMASTER_DEBUG=true
+QUIZMASTER_LOG_LEVEL=DEBUG
+QUIZMASTER_MOCK_AUTH=true
+```
+
+### Running Tests
+To run tests, use the provided test runner script:
+
+```bash
+# Run all tests
+python scripts/run_tests.py -e test
+
+# Run specific test file
+python scripts/run_tests.py tests/verified/core/test_db_session.py -v -s -e test
+
+# Run tests with specific marker
+python scripts/run_tests.py -m "integration" -e test
+```
+
+The `-e test` flag ensures tests run in the test environment with the correct configuration.
+
 ## Test Documentation Requirements
 
 Each test file must include a header comment with:

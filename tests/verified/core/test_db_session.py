@@ -31,6 +31,7 @@ import pytest
 import pytest_asyncio
 import logging
 import asyncio
+import os
 from uuid import UUID
 from typing import AsyncGenerator, Any
 from datetime import datetime
@@ -77,8 +78,12 @@ logger.addHandler(file_handler)
 # Get settings
 settings = get_settings()
 
+# Override host for local testing if not in Docker
+if not os.path.exists('/.dockerenv'):
+    settings.postgres_host = 'localhost'
+
 # Database configuration
-TEST_DATABASE_URL = f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/quizmaster_test"
+TEST_DATABASE_URL = f"postgresql+asyncpg://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/quizmaster_test"
 
 @pytest_asyncio.fixture(scope="session")
 async def schema_engine():

@@ -61,15 +61,29 @@ from dotenv import load_dotenv
 load_dotenv("backend/.env.test", override=True)
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import select, text
+import pytest_asyncio
 import logging
 import sys
 import traceback
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Any
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import text, select
+
+from api.core.config import get_settings
 from api.core.models import Base, User, LLMProvider
+
+# Get settings
+settings = get_settings()
+
+# Override host for local testing if not in Docker
+if not os.path.exists('/.dockerenv'):
+    settings.postgres_host = 'localhost'
+
+# Database configuration
+DATABASE_URL = f"postgresql+asyncpg://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/{settings.test_db_name}"
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -92,17 +106,6 @@ MOCK_USER_NAME = 'Mock Test User'
 @pytest.fixture(scope="session")
 async def test_engine():
     """Create test database engine"""
-    environment = os.getenv("QUIZMASTER_ENVIRONMENT", "test")
-    default_db = "quizmaster_dev" if environment == "development" else "quizmaster_test"
-    
-    DB_USER = os.getenv("POSTGRES_USER", "test_user")
-    DB_PASS = os.getenv("POSTGRES_PASSWORD", "test_password")
-    DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
-    DB_PORT = os.getenv("POSTGRES_PORT", "5432")
-    DB_NAME = os.getenv("POSTGRES_DB", default_db)
-    
-    DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    
     engine = create_async_engine(
         DATABASE_URL,
         echo=True,

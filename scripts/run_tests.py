@@ -86,10 +86,10 @@ def main():
     """Main entry point for test runner."""
     parser = argparse.ArgumentParser(description="QuizMasterPro Test Runner")
     parser.add_argument(
-        "test_path",
-        help="Test path to run (file or directory)",
-        nargs='?',
-        default="tests/verified"
+        "test_paths",
+        help="Test paths to run (files or directories)",
+        nargs='*',
+        default=["tests/verified"]
     )
     parser.add_argument(
         "-v", "--verbose",
@@ -139,10 +139,10 @@ def main():
         if args.show_output:
             pytest_args.append("-s")
 
-        # Add test path
-        pytest_args.append(args.test_path)
+        # Add test paths
+        pytest_args.extend(args.test_paths)
 
-        print(f"Running tests from {args.test_path}...")
+        print(f"Running tests from: {', '.join(args.test_paths)}...")
         
         # Run tests
         start_time = time.time()

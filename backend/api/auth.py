@@ -2,19 +2,25 @@
 
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-import uuid
+from typing import Optional, Dict
+from uuid import UUID
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select
 
-from .core.settings import settings
+from .core.config import get_settings
 from .core.database import get_db, get_session
-from api.core.models import User
+from .core.models import User
+
+# Get settings instance
+settings = get_settings()
+
+# Mock user ID for testing
+MOCK_USER_ID = UUID('f9b5645d-898b-4d58-b10a-a6b50a9d234b')
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -30,24 +36,30 @@ async def create_access_token(data: dict, expires_delta: Optional[timedelta] = N
     to_encode = data.copy()
     
     # Convert UUID to string if present
-    if 'sub' in to_encode and isinstance(to_encode['sub'], uuid.UUID):
+    if 'sub' in to_encode and isinstance(to_encode['sub'], UUID):
         to_encode['sub'] = str(to_encode['sub'])
     
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.auth_token_expire_minutes)
     to_encode.update({"exp": expire})
     
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.auth_secret, algorithm=settings.auth_algorithm)
     return encoded_jwt
 
 async def verify_token(token: str, db: AsyncSession) -> Optional[User]:
     """Verify a JWT token and return the user"""
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.auth_secret, algorithms=[settings.auth_algorithm])
         user_id = payload.get("sub")
         if user_id is None:
+            return None
+            
+        # Convert string to UUID
+        try:
+            user_id = UUID(user_id)
+        except ValueError:
             return None
         
         # Use provided session to get user
@@ -56,7 +68,7 @@ async def verify_token(token: str, db: AsyncSession) -> Optional[User]:
         )
         user = result.scalar_one_or_none()
         return user
-    except (JWTError, ValueError):
+    except jwt.PyJWTError:
         return None
 
 async def get_current_user(

@@ -51,7 +51,10 @@ Notes:
 import pytest
 import pytest_asyncio
 import logging
+import os
 from typing import Dict, AsyncGenerator
+from datetime import datetime, timedelta, timezone
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.sql import text
 from fastapi.testclient import TestClient
@@ -76,8 +79,12 @@ logger = logging.getLogger(__name__)
 # Get settings
 settings = get_settings()
 
+# Override host for local testing if not in Docker
+if not os.path.exists('/.dockerenv'):
+    settings.postgres_host = 'localhost'
+
 # Database configuration
-TEST_DATABASE_URL = f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/quizmaster_test"
+TEST_DATABASE_URL = f"postgresql+asyncpg://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/quizmaster_test"
 
 @pytest_asyncio.fixture
 async def session() -> AsyncGenerator[AsyncSession, None]:

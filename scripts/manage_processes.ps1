@@ -9,34 +9,9 @@ $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
 
-# Environment Selection Group
-$envGroup = New-Object System.Windows.Forms.GroupBox
-$envGroup.Location = New-Object System.Drawing.Point(10,10)
-$envGroup.Size = New-Object System.Drawing.Size(565,80)
-$envGroup.Text = "Environment Selection"
-
-# Environment Radio Buttons
-$envDev = New-Object System.Windows.Forms.RadioButton
-$envDev.Location = New-Object System.Drawing.Point(20,30)
-$envDev.Size = New-Object System.Drawing.Size(150,20)
-$envDev.Text = "Development"
-$envDev.Checked = $true
-
-$envTest = New-Object System.Windows.Forms.RadioButton
-$envTest.Location = New-Object System.Drawing.Point(200,30)
-$envTest.Size = New-Object System.Drawing.Size(150,20)
-$envTest.Text = "Test"
-
-$envProd = New-Object System.Windows.Forms.RadioButton
-$envProd.Location = New-Object System.Drawing.Point(380,30)
-$envProd.Size = New-Object System.Drawing.Size(150,20)
-$envProd.Text = "Production"
-
-$envGroup.Controls.AddRange(@($envDev, $envTest, $envProd))
-
 # Backend Group
 $backendGroup = New-Object System.Windows.Forms.GroupBox
-$backendGroup.Location = New-Object System.Drawing.Point(10,100)
+$backendGroup.Location = New-Object System.Drawing.Point(10,10)
 $backendGroup.Size = New-Object System.Drawing.Size(565,140)
 $backendGroup.Text = "Backend Process"
 
@@ -81,7 +56,7 @@ $backendGroup.Controls.AddRange(@($backendStatus, $startBackend, $stopBackend, $
 
 # Frontend Group
 $frontendGroup = New-Object System.Windows.Forms.GroupBox
-$frontendGroup.Location = New-Object System.Drawing.Point(10,250)
+$frontendGroup.Location = New-Object System.Drawing.Point(10,160)
 $frontendGroup.Size = New-Object System.Drawing.Size(565,140)
 $frontendGroup.Text = "Frontend Process"
 
@@ -112,8 +87,33 @@ $focusFrontend.Enabled = $false
 
 $frontendGroup.Controls.AddRange(@($frontendStatus, $startFrontend, $stopFrontend, $focusFrontend))
 
-# Add all groups to the form
-$form.Controls.AddRange(@($envGroup, $backendGroup, $frontendGroup))
+# Environment Selection Group
+$envGroup = New-Object System.Windows.Forms.GroupBox
+$envGroup.Location = New-Object System.Drawing.Point(10,310)
+$envGroup.Size = New-Object System.Drawing.Size(565,80)
+$envGroup.Text = "Environment Selection"
+
+# Environment Radio Buttons
+$envDev = New-Object System.Windows.Forms.RadioButton
+$envDev.Location = New-Object System.Drawing.Point(20,30)
+$envDev.Size = New-Object System.Drawing.Size(150,20)
+$envDev.Text = "Development"
+$envDev.Checked = $true
+
+$envTest = New-Object System.Windows.Forms.RadioButton
+$envTest.Location = New-Object System.Drawing.Point(200,30)
+$envTest.Size = New-Object System.Drawing.Size(150,20)
+$envTest.Text = "Test"
+
+$envProd = New-Object System.Windows.Forms.RadioButton
+$envProd.Location = New-Object System.Drawing.Point(380,30)
+$envProd.Size = New-Object System.Drawing.Size(150,20)
+$envProd.Text = "Production"
+
+$envGroup.Controls.AddRange(@($envDev, $envTest, $envProd))
+
+# Add all groups to form
+$form.Controls.AddRange(@($backendGroup, $frontendGroup, $envGroup))
 
 # Backend Process Variable
 $script:backendProcess = $null

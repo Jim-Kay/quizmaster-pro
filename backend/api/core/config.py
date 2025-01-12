@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     postgres_host: str = os.getenv("QUIZMASTER_POSTGRES_HOST", "localhost")
     postgres_port: str = os.getenv("QUIZMASTER_POSTGRES_PORT", "5432")
     postgres_db: str = "quizmaster_dev"  # Will be set in model_config
+    test_db_name: str = os.getenv("QUIZMASTER_TEST_DB_NAME", "quizmaster_test")
     
     # API settings
     api_host: str = "localhost"
@@ -47,7 +48,17 @@ class Settings(BaseSettings):
     # Auth settings
     auth_secret: str = os.getenv("QUIZMASTER_AUTH_SECRET", "your-secret-key")
     auth_algorithm: str = "HS256"
-    auth_token_expire_minutes: int = 30
+    auth_token_expire_minutes: int = int(os.getenv("QUIZMASTER_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    refresh_token_expire_minutes: int = int(os.getenv("QUIZMASTER_REFRESH_TOKEN_EXPIRE_MINUTES", "10080"))  # 7 days
+    
+    # Security settings
+    nextauth_secret: str = os.getenv("QUIZMASTER_NEXTAUTH_SECRET", "")
+    encryption_key: str = os.getenv("QUIZMASTER_ENCRYPTION_KEY", "")
+    
+    # Test settings
+    mock_auth: bool = os.getenv("QUIZMASTER_MOCK_AUTH", "false").lower() == "true"
+    debug: bool = os.getenv("QUIZMASTER_DEBUG", "false").lower() == "true"
+    log_level: str = os.getenv("QUIZMASTER_LOG_LEVEL", "INFO")
     
     # Python encoding
     pythonioencoding: Optional[str] = None

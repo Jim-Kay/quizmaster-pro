@@ -17,16 +17,19 @@ Test Metadata:
 
 import os
 import pytest
+import pytest_asyncio
 import logging
+from typing import AsyncGenerator, Any
+
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
+from sqlalchemy.sql import text
 from sqlalchemy.pool import NullPool
 from dotenv import load_dotenv
 from urllib.parse import urlparse
 
 # Import from backend package
-from api.core.database import get_async_session
+from api.core.database import get_db
 from api.core.config import get_settings
 
 # Load environment variables
@@ -39,8 +42,12 @@ logger = logging.getLogger(__name__)
 # Get settings
 settings = get_settings()
 
+# Override host for local testing if not in Docker
+if not os.path.exists('/.dockerenv'):
+    settings.postgres_host = 'localhost'
+
 # Database configuration
-DATABASE_URL = f"postgresql+asyncpg://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.TEST_DB_NAME}"
+DATABASE_URL = f"postgresql+asyncpg://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/{settings.test_db_name}"
 
 @pytest.fixture
 def database_url():

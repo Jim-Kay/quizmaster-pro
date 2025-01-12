@@ -57,20 +57,24 @@ Environment-specific `.env` files in the backend directory:
    ```env
    QUIZMASTER_POSTGRES_USER=test_user
    QUIZMASTER_POSTGRES_PASSWORD=test_password
-   QUIZMASTER_POSTGRES_HOST=localhost
+   QUIZMASTER_POSTGRES_HOST=host.docker.internal
    QUIZMASTER_POSTGRES_PORT=5432
    QUIZMASTER_POSTGRES_DB=quizmaster_dev
    QUIZMASTER_ENVIRONMENT=development
+   QUIZMASTER_DEBUG=true
+   QUIZMASTER_LOG_LEVEL=DEBUG
    ```
 
 2. `.env.test`
    ```env
    QUIZMASTER_POSTGRES_USER=test_user
    QUIZMASTER_POSTGRES_PASSWORD=test_password
-   QUIZMASTER_POSTGRES_HOST=localhost
+   QUIZMASTER_POSTGRES_HOST=host.docker.internal
    QUIZMASTER_POSTGRES_PORT=5432
    QUIZMASTER_POSTGRES_DB=quizmaster_test
    QUIZMASTER_ENVIRONMENT=test
+   QUIZMASTER_DEBUG=true
+   QUIZMASTER_LOG_LEVEL=DEBUG
    QUIZMASTER_MOCK_AUTH=true
    ```
 
@@ -78,10 +82,12 @@ Environment-specific `.env` files in the backend directory:
    ```env
    QUIZMASTER_POSTGRES_USER=postgres
    QUIZMASTER_POSTGRES_PASSWORD=secure_password
-   QUIZMASTER_POSTGRES_HOST=localhost
+   QUIZMASTER_POSTGRES_HOST=host.docker.internal
    QUIZMASTER_POSTGRES_PORT=5432
    QUIZMASTER_POSTGRES_DB=quizmaster
    QUIZMASTER_ENVIRONMENT=production
+   QUIZMASTER_DEBUG=false
+   QUIZMASTER_LOG_LEVEL=INFO
    ```
 
 #### Frontend Configuration
@@ -106,13 +112,67 @@ The frontend uses Next.js's built-in environment configuration system with envir
    NEXT_PUBLIC_ENVIRONMENT=production
    ```
 
+## Test Environment Considerations
+
+The test environment is designed to work seamlessly both locally and within Docker containers. This is particularly important for database connectivity:
+
+#### Database Host Configuration
+- When running in Docker: Uses `host.docker.internal` to connect to the host machine's PostgreSQL
+- When running locally: Automatically switches to `localhost`
+
+This is handled automatically by the test configuration:
+```python
+# In test files
+if not os.path.exists('/.dockerenv'):
+    settings.postgres_host = 'localhost'
+```
+
+#### Environment Variables
+Test environment variables use the `QUIZMASTER_` prefix and are loaded from `.env.test`:
+
+```bash
+# Database configuration
+QUIZMASTER_POSTGRES_USER=test_user
+QUIZMASTER_POSTGRES_PASSWORD=test_password
+QUIZMASTER_POSTGRES_HOST=host.docker.internal
+QUIZMASTER_POSTGRES_PORT=5432
+QUIZMASTER_POSTGRES_DB=quizmaster_test
+
+# Test settings
+QUIZMASTER_ENVIRONMENT=test
+QUIZMASTER_DEBUG=true
+QUIZMASTER_LOG_LEVEL=DEBUG
+QUIZMASTER_MOCK_AUTH=true
+```
+
+#### Running Tests
+Tests can be run either through the Process Manager GUI or directly via command line:
+
+```bash
+# Using Process Manager
+1. Open Process Manager GUI
+2. Select "Test" environment
+3. Click "Start Backend" to run in test mode
+
+# Direct command line
+python scripts/run_tests.py -e test            # Run all tests
+python scripts/run_tests.py <test_file> -e test  # Run specific test
+```
+
+The `-e test` flag ensures proper environment configuration regardless of whether running locally or in Docker.
+
 ## Environment Indicator
 
-The system includes a visual environment indicator in the top-right corner of the UI that shows:
+The system includes a visual environment indicator in the bottom-left corner of the UI that shows:
 - Current environment name (e.g., "DEVELOPMENT")
 - Current database name (e.g., "quizmaster_dev")
-- Color-coded background based on environment
-- Tooltip with additional details on hover
+- Color-coded background based on environment (blue for dev, orange for test, green for prod)
+- Tooltip with additional details on hover, including:
+  - Frontend environment
+  - Backend environment
+  - Database name
+  - Process ID
+  - Environment description
 
 ## Running Tests
 

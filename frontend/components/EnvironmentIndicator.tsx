@@ -83,8 +83,8 @@ const EnvironmentIndicator: React.FC = () => {
   return (
     <Box
       position="fixed"
-      top="0"
-      right="180px"
+      bottom="0"
+      left="0"
       m={4}
       p={2}
       bg={envInfo.color}
@@ -98,7 +98,7 @@ Backend: ${envInfo.environment}
 Database: ${envInfo.database_name || 'Unknown'}
 Process ID: ${envInfo.process_id}
 ${envInfo.description}`}
-        placement="bottom-end"
+        placement="top-start"
       >
         <VStack spacing={0} align="flex-end">
           <Text fontWeight="bold">
