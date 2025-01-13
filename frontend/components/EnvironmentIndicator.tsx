@@ -53,8 +53,8 @@ const EnvironmentIndicator: React.FC = () => {
 
     fetchEnvironment();
     
-    // Refresh environment info every 5 seconds
-    const interval = setInterval(fetchEnvironment, 5000);
+    // Refresh environment info every 60 seconds
+    const interval = setInterval(fetchEnvironment, 60000);
     return () => clearInterval(interval);
   }, []);
 

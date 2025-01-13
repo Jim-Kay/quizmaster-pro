@@ -60,6 +60,7 @@ from sqlalchemy.sql import text
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 from starlette import status
+from starlette.websockets import WebSocketDisconnect
 
 from api.core.models import User, Base
 from api.core.config import get_settings
@@ -191,7 +192,7 @@ async def test_protected_route_access(session: AsyncSession, mock_user: Dict):
 
 @pytest.mark.asyncio
 async def test_websocket_auth(session: AsyncSession, mock_user: Dict):
-    """Test WebSocket connection with token authentication"""
+    """Test WebSocket authentication"""
     logger.info("Testing WebSocket authentication...")
     
     # Create token
@@ -199,18 +200,26 @@ async def test_websocket_auth(session: AsyncSession, mock_user: Dict):
     
     # Override get_db dependency
     async def override_get_db():
-        yield session
+        try:
+            yield session
+        finally:
+            await session.close()
     
     app.dependency_overrides[get_db] = override_get_db
     
     # Create test client
-    client = TestClient(app)
-    
-    # Test WebSocket connection
-    with client.websocket_connect(f"/api/ws?token={token}") as websocket:
-        data = websocket.receive_json()
-        assert data["type"] == "connection_established"
-        assert data["user_id"] == str(mock_user["id"])
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        # Test with valid token
+        async with client.websocket_connect(f"/api/ws?token={token}") as websocket:
+            data = await websocket.receive_json()
+            assert data["type"] == "connection_established"
+            assert data["user_id"] == str(mock_user["id"])
         
+        # Test with invalid token
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            async with client.websocket_connect("/api/ws?token=invalid_token"):
+                pass
+        assert exc_info.value.code == status.WS_1008_POLICY_VIOLATION
+    
     # Clean up dependency override
     app.dependency_overrides.clear()
